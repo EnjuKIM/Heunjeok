@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -782,6 +782,7 @@ input.field-in,select.field-in{width:100%}
 <!-- SETTINGS -->
 <section class="view" id="view-settings">
   <div class="viewhead"><div class="eyebrow">설정</div><h2>설정</h2><p>AI 정리, 화면, 데이터 백업을 관리합니다.</p></div>
+  <div class="set-group" id="syncGroup"></div>
   <div class="set-group">
     <div class="set-row"><div class="lbl"><b>화면 밝기</b><p>자동은 기기 설정을 따릅니다.</p></div>
       <div class="ctrl"><div class="seg" id="themeSeg">
@@ -835,7 +836,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.47 · 기록은 이 컴퓨터의 브라우저 저장공간에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.48 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1006,7 +1007,7 @@ function defaultDoc(){return {
   todos:{},
   routineLog:{},
   ddays:[],
-  settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,
+  settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
     showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
     routineVer:3,
@@ -1018,7 +1019,9 @@ function defaultDoc(){return {
 };}
 let state=defaultDoc();
 let saveChain=Promise.resolve();
-function scheduleSave(){saveChain=saveChain.then(saveNow);return saveChain}
+/* 기기 간 동기화 상태 (실제 로직은 아래 Firebase 블록에 있음) */
+let syncOn=false,syncUid=null,syncReady=false,pendingCloud=null,lastSyncAt=0,_lastSettingsHash=null;
+function scheduleSave(){saveChain=saveChain.then(saveNow);if(syncOn)scheduleCloudPush();return saveChain}
 /* 데이터 안전장치: 별도 'safety' 스냅샷을 최신 상태로만 갱신하고, main이 오래된(줄어든) 채 열리면 safety에서 자동 복구 */
 let bulkOp=false, recoveredFromSafety=false;
 function docStamp(d){
@@ -1030,6 +1033,9 @@ function docStamp(d){
 }
 async function saveNow(){
   try{
+    const _sh=settingsHash();
+    if(_lastSettingsHash!==null&&_sh!==_lastSettingsHash)state.settings.updatedAt=Date.now();
+    _lastSettingsHash=_sh;
     if(storageMode==='idb'){
       const {_photos,...doc}=state;
       await idbPut('doc','main',doc);
@@ -1088,6 +1094,7 @@ function migrate(){let ch=false;
   if(!state.settings.planCollapsed){state.settings.planCollapsed={tracker:1,history:1,dday:1};ch=true;}
   if(!state.settings)state.settings=defaultDoc().settings;
   if(state.settings.lastBackupAt===undefined){state.settings.lastBackupAt=0;ch=true;}
+  if(state.settings.updatedAt===undefined){state.settings.updatedAt=activeEntries().length?Date.now():0;ch=true;}
   if(state.version!==3){state.version=3;ch=true;}
   if(ch)scheduleSave();
 }
@@ -1666,6 +1673,7 @@ function renderSettings(){
   $('#modelInput').value=s.model||'';
   const lb=$('#lastBackupText');if(lb)lb.textContent=s.lastBackupAt?new Date(s.lastBackupAt).toLocaleString('ko-KR'):'아직 백업하지 않았습니다.';
   const tc=$('#trashCount');if(tc){const n=trashedEntries().length;tc.textContent=n?`(${n})`:'';}
+  renderSyncSettings();
   renderTagManage();
   renderUsage();
 }
@@ -1702,7 +1710,7 @@ function switchView(v){
 function refreshCurrent(){switchView(currentView)}
 /* ---------- modal utils ---------- */
 function openModal(id){$(id).classList.add('open');document.body.style.overflow='hidden'}
-function closeModal(id){$(id).classList.remove('open');if(!$$('.modal.open').length)document.body.style.overflow=''}
+function closeModal(id){$(id).classList.remove('open');if(!$$('.modal.open').length){document.body.style.overflow='';if(pendingCloud){const c=pendingCloud;pendingCloud=null;applyCloud(c);}}}
 $$('.modal .close').forEach(b=>b.onclick=e=>closeModal('#'+e.target.closest('.modal').id));
 $$('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)closeModal('#'+m.id)}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=$$('.modal.open').pop();if(open)closeModal('#'+open.id)}});
@@ -2520,6 +2528,137 @@ async function reloadFromStorage(){
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
+/* ---------- 기기 간 동기화 (Firebase, 로그인해야만 작동하는 opt-in) ---------- */
+const FIREBASE_CONFIG={apiKey:"AIzaSyCHxER0mBk7iIZ2lnXVStVQ7VhIycWKTt8",authDomain:"heunjeok-d821e.firebaseapp.com",projectId:"heunjeok-d821e",storageBucket:"heunjeok-d821e.firebasestorage.app",messagingSenderId:"466690526331",appId:"1:466690526331:web:23d274d54edb9fa527a6de"};
+let fbApp=null,fbAuth=null,fbDb=null,snapUnsub=null,pushTimer=null,pushing=false,pushDirty=false;
+/* 의미 있는 설정만 해시로 감시 → 실제로 바뀔 때만 동기화 우선순위(updatedAt) 갱신 */
+function settingsHash(){try{const s=state.settings||{};return JSON.stringify({routine:s.routine,marks:s.marks,habits:s.habits,tags:s.tags,theme:s.theme,showTimelineTags:s.showTimelineTags,showTodos:s.showTodos,voiceAutoSave:s.voiceAutoSave,autoYesterday:s.autoYesterday});}catch(e){return'';}}
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);});}
+async function ensureFirebase(){if(window.firebase&&window.firebase.firestore)return true;const b='https://www.gstatic.com/firebasejs/10.12.5/';await loadScript(b+'firebase-app-compat.js');await loadScript(b+'firebase-auth-compat.js');await loadScript(b+'firebase-firestore-compat.js');return !!(window.firebase&&window.firebase.firestore);}
+async function setupSync(){
+  if(location.protocol==='file:')return; // 로컬 파일에서는 로그인 불가 — 웹 주소에서만 동기화
+  try{
+    const ok=await ensureFirebase();if(!ok)return;
+    fbApp=firebase.apps&&firebase.apps.length?firebase.app():firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth=firebase.auth();fbDb=firebase.firestore();
+    syncReady=true;
+    fbAuth.onAuthStateChanged(onAuth);
+    fbAuth.getRedirectResult().catch(()=>{});
+    if(currentView==='settings')renderSyncSettings();
+  }catch(e){console.warn('firebase 초기화 실패',e);}
+}
+function signInGoogle(){
+  if(!fbAuth){toast('연결 준비 중이에요. 잠시 후 다시 시도해주세요.');return;}
+  const p=new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(p).catch(err=>{
+    const code=(err&&err.code)||'';
+    if(code.indexOf('popup')>=0||code.indexOf('cancelled')>=0){try{fbAuth.signInWithRedirect(p);}catch(e){toast('로그인 실패: '+shortErr(e));}}
+    else toast('로그인 실패: '+shortErr(err));
+  });
+}
+function onAuth(u){
+  if(u){syncUid=u.uid;startSync();}else{stopSync();}
+  if(currentView==='settings')renderSyncSettings();
+}
+function startSync(){
+  if(!fbDb||!syncUid)return;
+  syncOn=true;
+  const ref=fbDb.collection('users').doc(syncUid);
+  if(snapUnsub){try{snapUnsub();}catch(e){}}
+  snapUnsub=ref.onSnapshot(onCloudSnap,err=>console.warn('snapshot',err));
+  scheduleCloudPush();
+  toast('기기 간 동기화를 시작했어요.');
+}
+function stopSync(){syncOn=false;syncUid=null;if(snapUnsub){try{snapUnsub();}catch(e){}snapUnsub=null;}}
+/* 클라우드로 보낼 형태: 사진(_photos)·API 키는 제외 (사진은 기기별) */
+function cloudPayload(){const {_photos,...rest}=state;return {...rest,settings:{...state.settings,apiKey:''}};}
+function onCloudSnap(snap){
+  if(!snap||!snap.exists){scheduleCloudPush();return;} // 클라우드가 비어 있으면 내 데이터로 씨앗 넣기
+  let cloud=null;try{cloud=JSON.parse(snap.get('blob')||'null');}catch(e){}
+  if(!cloud)return;
+  if($$('.modal.open').length){pendingCloud=cloud;return;} // 편집 중이면 창 닫힐 때 반영
+  applyCloud(cloud);
+}
+function fullSig(d){return docSig(d)+':'+Object.keys((d&&d.routineLog)||{}).length+':'+((d&&d.ddays)||[]).length+':'+((d&&d.settings&&d.settings.updatedAt)||0);}
+async function applyCloud(cloud){
+  const before=fullSig(state);
+  const merged=mergeDocs(cloudPayload(),cloud);
+  const keepKey=state.settings.apiKey,keepPhotos=state._photos;
+  state=Object.assign(defaultDoc(),merged);
+  state.settings=Object.assign(defaultDoc().settings,merged.settings||{});
+  state.settings.apiKey=keepKey||'';
+  state._photos=keepPhotos||{};
+  migrate();
+  _lastSettingsHash=settingsHash(); // 방금 받은 설정을 새 편집으로 오인하지 않게
+  bulkOp=true;await saveNow();bulkOp=false;
+  lastSyncAt=Date.now();
+  if(fullSig(state)!==before)refreshCurrent();
+  else if(currentView==='settings')renderSyncSettings();
+}
+function scheduleCloudPush(){if(!syncOn)return;clearTimeout(pushTimer);pushTimer=setTimeout(runPush,1500);}
+async function runPush(){
+  if(!syncOn||!syncUid||!fbDb)return;
+  if(pushing){pushDirty=true;return;}
+  pushing=true;pushDirty=false;
+  try{
+    const ref=fbDb.collection('users').doc(syncUid);
+    await fbDb.runTransaction(async tx=>{
+      const snap=await tx.get(ref);
+      let cloud=null,cloudBlob=null;
+      if(snap.exists){cloudBlob=snap.get('blob')||null;try{cloud=JSON.parse(cloudBlob||'null');}catch(e){}}
+      const merged=cloud?mergeDocs(cloudPayload(),cloud):cloudPayload();
+      const blob=JSON.stringify(merged);
+      if(blob===cloudBlob)return; // 이미 같으면 쓰지 않음(무한루프 방지)
+      if(blob.length>1000000)throw new Error('blob-too-large');
+      tx.set(ref,{blob:blob,updatedAt:Date.now(),v:3});
+    });
+    lastSyncAt=Date.now();
+    if(currentView==='settings')renderSyncSettings();
+  }catch(e){
+    console.warn('클라우드 전송 실패',e);pushDirty=true;
+    if((e&&e.message||'').indexOf('too-large')>=0)toast('기록이 많아 동기화 용량 한계에 가까워요. 알려주세요.');
+  }
+  pushing=false;
+  if(pushDirty)setTimeout(scheduleCloudPush,4000);
+}
+/* ----- 안전한 병합: 어느 쪽도 데이터를 잃지 않음 ----- */
+function mergeEntries(a,b){const m=new Map();const put=e=>{if(!e||!e.id)return;const p=m.get(e.id);const et=(e.updatedAt||e.createdAt||0);if(!p||et>(p.updatedAt||p.createdAt||0))m.set(e.id,e);};(a||[]).forEach(put);(b||[]).forEach(put);return [...m.values()];}
+function mergeByTime(a,b,tk){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const x=(a||{})[k],y=(b||{})[k];out[k]=(x&&y)?(((y[tk]||0)>(x[tk]||0))?y:x):(x||y);});return out;}
+function _todoMax(arr){let m=0;(arr||[]).forEach(t=>{const v=Math.max(t.updatedAt||0,t.createdAt||0);if(v>m)m=v;});return m;}
+function mergeTodos(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const x=(a||{})[k],y=(b||{})[k];out[k]=(x&&y)?(_todoMax(y)>_todoMax(x)?y:x):(x||y);});return out;}
+function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{out[k]=Object.assign({},(a||{})[k]||{},(b||{})[k]||{});});return out;}
+function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
+function mergeDocs(a,b){
+  a=a||{};b=b||{};
+  const out={version:3};
+  out.entries=mergeEntries(a.entries,b.entries);
+  out.summaries=mergeByTime(a.summaries,b.summaries,'generatedAt');
+  out.weekly=mergeByTime(a.weekly,b.weekly,'generatedAt');
+  out.todos=mergeTodos(a.todos,b.todos);
+  out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
+  out.ddays=mergeById(a.ddays,b.ddays);
+  out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
+  const sa=(a.settings&&a.settings.updatedAt)||0,sb=(b.settings&&b.settings.updatedAt)||0;
+  const aEmpty=!((a.entries||[]).some(e=>!e.deletedAt))&&!Object.keys(a.summaries||{}).length;
+  const bEmpty=!((b.entries||[]).some(e=>!e.deletedAt))&&!Object.keys(b.summaries||{}).length;
+  if(aEmpty&&!bEmpty)out.settings=Object.assign({},b.settings);
+  else if(bEmpty&&!aEmpty)out.settings=Object.assign({},a.settings);
+  else out.settings=(sb>sa)?Object.assign({},b.settings):Object.assign({},a.settings);
+  return out;
+}
+function renderSyncSettings(){
+  const box=$('#syncGroup');if(!box)return;
+  if(location.protocol==='file:'){box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>이 파일은 오프라인(file://)이라 로그인할 수 없어요. 동기화는 웹 주소 <b>enjukim.github.io/Heunjeok</b> 에서 열었을 때 작동합니다.</p></div></div>`;return;}
+  if(!syncReady){box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>연결 준비 중…</p></div></div>`;return;}
+  const u=fbAuth&&fbAuth.currentUser;
+  if(u){
+    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화 · 켜짐 ✓</b><p>${esc(u.email||'로그인됨')} · PC와 폰이 같은 기록을 공유해요. (글·기록만, 사진은 기기별)</p><p style="margin-top:3px;color:var(--muted)">${lastSyncAt?'마지막 동기화 '+new Date(lastSyncAt).toLocaleString('ko-KR'):'동기화 대기 중…'}</p></div><div class="ctrl"><button class="btn" id="syncOut">로그아웃</button></div></div>`;
+    const o=$('#syncOut');if(o)o.onclick=()=>{if(confirm('로그아웃하면 이 기기에서 동기화가 멈춰요. 기록은 이 기기에 그대로 남습니다. 계속할까요?'))fbAuth.signOut();};
+  }else{
+    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>구글로 로그인하면 <b>PC와 폰이 자동으로 같은 기록</b>을 공유해요. 로그인하지 않으면 지금처럼 이 기기에만 저장됩니다. (글·기록만 동기화 · 사진은 기기별)</p></div><div class="ctrl"><button class="btn primary" id="syncIn"><svg class="icon sm"><use href="#i-up"/></svg>구글로 로그인</button></div></div>`;
+    const i=$('#syncIn');if(i)i.onclick=signInGoogle;
+  }
+}
 /* ---------- init ---------- */
 async function init(){
   try{await openDB();storageMode='idb';}
@@ -2536,6 +2675,8 @@ async function init(){
   switchView('today');
   maybeAutoYesterday();
   appReady=true;
+  _lastSettingsHash=settingsHash();
+  setupSync();
 }
 function maybeAutoYesterday(){
   if(!state.settings.autoYesterday||!state.settings.apiKey||!state.settings.model)return;
