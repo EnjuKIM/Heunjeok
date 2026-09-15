@@ -836,7 +836,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.48 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.49 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1207,14 +1207,14 @@ $('#todoToggle').onclick=()=>{state.settings.todosCollapsed=!state.settings.todo
 /* ---------- 할 일 모아보기 (all todos view) ---------- */
 let todoFilter='all';
 function todoRowHtml(t,date){return `<div class="todo-item${t.done?' done':''}" data-tdate="${date}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;}
-function toggleTodoGroup(date){const arr=state.settings.todoCollapsedDates||(state.settings.todoCollapsedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderAllTodos();}
+function toggleTodoGroup(date){const arr=state.settings.todoExpandedDates||(state.settings.todoExpandedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderAllTodos();}
 function renderAllTodos(){
   const bar=$('#todoFilterBar'),body=$('#todosBody');if(!body)return;
   const all=state.todos||{};
   const dates=Object.keys(all).filter(d=>(all[d]||[]).length).sort().reverse();
   let totalUndone=0,totalDone=0;
   dates.forEach(d=>all[d].forEach(t=>t.done?totalDone++:totalUndone++));
-  const collapsed=new Set(state.settings.todoCollapsedDates||[]);
+  const expanded=new Set(state.settings.todoExpandedDates||[]);
   if(bar){bar.innerHTML=`<button class="chip ${todoFilter==='all'?'on':''}" data-tf="all">전체</button><button class="chip ${todoFilter==='undone'?'on':''}" data-tf="undone">미완료 ${totalUndone}</button>`;
     bar.querySelectorAll('[data-tf]').forEach(b=>b.onclick=()=>{todoFilter=b.dataset.tf;renderAllTodos();});}
   const groups=dates.map(date=>{
@@ -1222,7 +1222,7 @@ function renderAllTodos(){
     if(todoFilter==='undone')items=items.filter(t=>!t.done);
     if(!items.length)return '';
     const un=all[date].filter(t=>!t.done).length;
-    return `<div class="todo-group${un?'':' alldone'}${collapsed.has(date)?' collapsed':''}"><div class="todo-group-head" data-tgroup="${date}"><span class="tg-left"><svg class="icon sm tg-chev"><use href="#i-chev"/></svg><span class="tg-date">${korShort(date)}</span></span><span class="tg-count">${un?un+' 남음':'다 함 ✓'}</span></div><div class="todo-list">${items.map(t=>todoRowHtml(t,date)).join('')}</div></div>`;
+    return `<div class="todo-group${un?'':' alldone'}${expanded.has(date)?'':' collapsed'}"><div class="todo-group-head" data-tgroup="${date}"><span class="tg-left"><svg class="icon sm tg-chev"><use href="#i-chev"/></svg><span class="tg-date">${korShort(date)}</span></span><span class="tg-count">${un?un+' 남음':'다 함 ✓'}</span></div><div class="todo-list">${items.map(t=>todoRowHtml(t,date)).join('')}</div></div>`;
   }).filter(Boolean).join('');
   const summary=dates.length?`<div class="todo-summary">미완료 <b>${totalUndone}</b> · 완료 ${totalDone}</div>`:'';
   body.innerHTML=groups?summary+groups:`<div class="empty">${icon('i-checklist')}<b>${dates.length?'미완료 할 일이 없어요.':'아직 할 일이 없어요.'}</b><small>오늘 화면에서 할 일을 추가해보세요.</small></div>`;
@@ -1362,7 +1362,7 @@ function renderCalendar(){
   if(cp)cp.onclick=()=>{calRef=new Date(calRef.getFullYear(),calRef.getMonth()-1,1);renderCalendar();};
   if(cn)cn.onclick=()=>{calRef=new Date(calRef.getFullYear(),calRef.getMonth()+1,1);renderCalendar();};}
 /* ---------- TIMELINE ---------- */
-function toggleTlGroup(date){const arr=state.settings.tlCollapsedDates||(state.settings.tlCollapsedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderTimeline();}
+function toggleTlGroup(date){const arr=state.settings.tlExpandedDates||(state.settings.tlExpandedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderTimeline();}
 /* ---------- 하루 계획표 (원형 루틴 링) ---------- */
 const ROUTINE_COLORS={sage:'#b9c79c',blue:'#a7c1da',peach:'#e9b78f',purple:'#c6b3da',gold:'#e6d29a',clay:'#d7a186',rose:'#dcaeb6',slate:'#a9b3c1'};
 const ROUTINE_COLOR_KEYS=Object.keys(ROUTINE_COLORS);
@@ -1538,9 +1538,9 @@ function renderTimeline(){
   const dates=allDatesDesc();
   const body=$('#timelineBody');
   if(!dates.length){body.innerHTML=`<div class="empty">${icon('i-clock')}<b>아직 쌓인 기록이 없어요.</b>오늘 화면에서 첫 흔적을 남겨보세요.</div>`;return;}
-  const collapsed=new Set(state.settings.tlCollapsedDates||[]);
+  const expanded=new Set(state.settings.tlExpandedDates||[]);
   body.innerHTML=dates.map(date=>{
-    const es=entriesOf(date);const sum=state.summaries[date];const isCol=collapsed.has(date);
+    const es=entriesOf(date);const sum=state.summaries[date];const isCol=!expanded.has(date);
     return `<div class="tl-day${isCol?' collapsed':''}"><div class="tl-date" data-tlgroup="${date}"><svg class="icon sm tl-chev"><use href="#i-chev"/></svg>${korShort(date)}${sum?'<span class="badge">정리됨</span>':''}<span class="tl-count">${es.length}</span></div>
       <div class="feed">${isCol?'':[...es].reverse().map(e=>entryHtml(e)).join('')}</div></div>`;
   }).join('');
@@ -1617,14 +1617,14 @@ function decRowHtml(d){
   const label=(DEC_STATUS.find(x=>x[0]===st)||DEC_STATUS[0])[1];
   return `<div class="dec" data-day="${d.date}"><div class="d-text pre">${renderRich(d.text)}</div><button class="dec-status ${st}" data-decstatus="${d.key}">${label}</button><span class="src">${esc(d.src)}</span></div>`;
 }
-function toggleDecGroup(date){const arr=state.settings.decCollapsedDates||(state.settings.decCollapsedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderDecisions();}
+function toggleDecGroup(date){const arr=state.settings.decExpandedDates||(state.settings.decExpandedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderDecisions();}
 function renderDecisions(){
   const list=collectDecisions();const body=$('#decisionsBody');
   if(!list.length){body.innerHTML=`<div class="empty">${icon('i-flag')}<b>아직 모인 결정이 없어요.</b><small>한 줄 기록에 #결정 태그를 달거나, 대화·오늘요약의 ‘결정’이 여기에 모입니다.</small></div>`;return;}
-  const collapsed=new Set(state.settings.decCollapsedDates||[]);
+  const expanded=new Set(state.settings.decExpandedDates||[]);
   const byDate={};list.forEach(d=>{(byDate[d.date]=byDate[d.date]||[]).push(d);});
   const dates=Object.keys(byDate).sort().reverse();
-  body.innerHTML=dates.map(date=>`<div class="todo-group${collapsed.has(date)?' collapsed':''}"><div class="todo-group-head" data-decgroup="${date}"><span class="tg-left"><svg class="icon sm tg-chev"><use href="#i-chev"/></svg><span class="tg-date">${korShort(date)}</span></span><span class="tg-count">${byDate[date].length}건</span></div><div class="dec-list">${byDate[date].map(decRowHtml).join('')}</div></div>`).join('');
+  body.innerHTML=dates.map(date=>`<div class="todo-group${expanded.has(date)?'':' collapsed'}"><div class="todo-group-head" data-decgroup="${date}"><span class="tg-left"><svg class="icon sm tg-chev"><use href="#i-chev"/></svg><span class="tg-date">${korShort(date)}</span></span><span class="tg-count">${byDate[date].length}건</span></div><div class="dec-list">${byDate[date].map(decRowHtml).join('')}</div></div>`).join('');
   body.querySelectorAll('.todo-group-head').forEach(b=>b.onclick=()=>toggleDecGroup(b.dataset.decgroup));
   $$('#decisionsBody .dec').forEach(b=>b.onclick=e=>{if(e.target.closest('[data-decstatus]'))return;openDay(b.dataset.day);});
   $$('#decisionsBody [data-decstatus]').forEach(b=>b.onclick=e=>{e.stopPropagation();const cur=(state.decisionMeta[b.dataset.decstatus]||{}).status||'keep';const o=['keep','changed','cancel'];state.decisionMeta[b.dataset.decstatus]={status:o[(o.indexOf(cur)+1)%3]};scheduleSave();renderDecisions();});
