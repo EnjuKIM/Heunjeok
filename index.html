@@ -836,7 +836,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.49 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.50 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1805,11 +1805,15 @@ function insertAtCursor(ta,text){
 const FMT_COLORS={red:'red',blue:'accent-2',green:'accent',gold:'gold'};
 function renderRich(t){
   let s=esc(t);
+  // 수식($$..$$, \[..\], \(..\))은 서식/정리 처리에서 깨지지 않게 잠시 빼둔다(KaTeX가 나중에 렌더)
+  const _math=[];
+  s=s.replace(/(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g,m=>{_math.push(m);return 'M'+(_math.length-1)+'';});
   s=s.replace(/\{\{(red|blue|green|gold):([\s\S]*?)\}\}/g,(m,c,x)=>`<span style="color:var(--${FMT_COLORS[c]})">${x}</span>`);
   s=s.replace(/\*\*([\s\S]+?)\*\*/g,'<strong>$1</strong>');
   s=s.replace(/\+\+([\s\S]+?)\+\+/g,'<u>$1</u>');
   s=s.replace(/__([\s\S]+?)__/g,'<em>$1</em>');
   s=s.replace(/\{\{(?:red|blue|green|gold):/g,'').replace(/\}\}/g,'').replace(/\*\*/g,'').replace(/\+\+/g,'');
+  s=s.replace(/M(\d+)/g,(m,i)=>_math[+i]||'');
   return s;
 }
 function stripRich(t){return String(t||'').replace(/\{\{(?:red|blue|green|gold):([\s\S]*?)\}\}/g,'$1').replace(/\*\*([\s\S]+?)\*\*/g,'$1').replace(/\+\+([\s\S]+?)\+\+/g,'$1').replace(/__([\s\S]+?)__/g,'$1');}
@@ -2659,6 +2663,26 @@ function renderSyncSettings(){
     const i=$('#syncIn');if(i)i.onclick=signInGoogle;
   }
 }
+/* ---------- 수식 렌더링 (KaTeX, CDN에서 불러옴; 못 불러오면 원문 그대로) ---------- */
+let katexTried=false, mathObs=null, _mathT=null;
+function loadCss(href){return new Promise(res=>{const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.onload=res;l.onerror=res;document.head.appendChild(l);});}
+const MATH_DELIMS=[{left:'$$',right:'$$',display:true},{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}];
+function mathTypeset(root){if(!window.renderMathInElement||!root)return;try{window.renderMathInElement(root,{delimiters:MATH_DELIMS,throwOnError:false});}catch(e){}}
+function scheduleMathTypeset(){if(!window.renderMathInElement)return;clearTimeout(_mathT);_mathT=setTimeout(()=>{mathTypeset(document.querySelector('.shell'));const dm=document.getElementById('dayBody');if(dm)mathTypeset(dm);},150);}
+function setupMathObserver(){
+  if(mathObs||!('MutationObserver'in window))return;
+  mathObs=new MutationObserver(scheduleMathTypeset);
+  [document.querySelector('.shell'),document.getElementById('dayModal')].forEach(el=>{if(el)mathObs.observe(el,{childList:true,subtree:true});});
+}
+async function ensureKatex(){
+  if(window.renderMathInElement)return true;
+  if(katexTried)return false;
+  katexTried=true;
+  const b='https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/';
+  try{await loadCss(b+'katex.min.css');await loadScript(b+'katex.min.js');await loadScript(b+'contrib/auto-render.min.js');}catch(e){console.warn('KaTeX 로드 실패',e);}
+  if(window.renderMathInElement){setupMathObserver();mathTypeset(document.body);return true;}
+  return false;
+}
 /* ---------- init ---------- */
 async function init(){
   try{await openDB();storageMode='idb';}
@@ -2677,6 +2701,7 @@ async function init(){
   appReady=true;
   _lastSettingsHash=settingsHash();
   setupSync();
+  ensureKatex();
 }
 function maybeAutoYesterday(){
   if(!state.settings.autoYesterday||!state.settings.apiKey||!state.settings.model)return;
