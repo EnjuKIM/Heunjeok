@@ -41,6 +41,10 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .icon{width:18px;height:18px;display:inline-block;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .icon.sm{width:15px;height:15px}.icon.lg{width:26px;height:26px}
 .pre{white-space:pre-wrap;word-break:break-word}
+.md-h{font-family:'Gowun Batang','Batang',serif;font-weight:700;color:var(--ink)}
+.md-h1{font-size:1.28em}.md-h2{font-size:1.16em}.md-h3{font-size:1.05em}
+.md-hr{display:block;height:0;border:none;border-top:1px solid var(--line);margin:9px 0}
+.md-bullet{color:var(--accent);font-weight:700}
 .hidden{display:none!important}
 /* top bar */
 .topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
@@ -836,7 +840,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.50 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.51 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1808,11 +1812,22 @@ function renderRich(t){
   // 수식($$..$$, \[..\], \(..\))은 서식/정리 처리에서 깨지지 않게 잠시 빼둔다(KaTeX가 나중에 렌더)
   const _math=[];
   s=s.replace(/(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g,m=>{_math.push(m);return 'M'+(_math.length-1)+'';});
-  s=s.replace(/\{\{(red|blue|green|gold):([\s\S]*?)\}\}/g,(m,c,x)=>`<span style="color:var(--${FMT_COLORS[c]})">${x}</span>`);
-  s=s.replace(/\*\*([\s\S]+?)\*\*/g,'<strong>$1</strong>');
-  s=s.replace(/\+\+([\s\S]+?)\+\+/g,'<u>$1</u>');
-  s=s.replace(/__([\s\S]+?)__/g,'<em>$1</em>');
-  s=s.replace(/\{\{(?:red|blue|green|gold):/g,'').replace(/\}\}/g,'').replace(/\*\*/g,'').replace(/\+\+/g,'');
+  const inline=x=>{
+    x=x.replace(/\{\{(red|blue|green|gold):([\s\S]*?)\}\}/g,(m,c,y)=>`<span style="color:var(--${FMT_COLORS[c]})">${y}</span>`);
+    x=x.replace(/\*\*([\s\S]+?)\*\*/g,'<strong>$1</strong>');
+    x=x.replace(/\+\+([\s\S]+?)\+\+/g,'<u>$1</u>');
+    x=x.replace(/__([\s\S]+?)__/g,'<em>$1</em>');
+    return x.replace(/\{\{(?:red|blue|green|gold):/g,'').replace(/\}\}/g,'').replace(/\*\*/g,'').replace(/\+\+/g,'');
+  };
+  // 줄 맨 앞이 명확히 마크다운일 때만 블록 처리(소제목/구분선/목록), 나머지는 그대로
+  s=s.split('\n').map(line=>{
+    let m=line.match(/^(#{1,6})[ \t]+(.*)$/);
+    if(m)return `<span class="md-h md-h${Math.min(m[1].length,3)}">${inline(m[2])}</span>`;
+    if(/^[ \t]*([-*_])\1{2,}[ \t]*$/.test(line))return '<span class="md-hr"></span>';
+    m=line.match(/^([ \t]*)[-*+][ \t]+(.*)$/);
+    if(m)return `${m[1]}<span class="md-bullet">•</span> ${inline(m[2])}`;
+    return inline(line);
+  }).join('\n');
   s=s.replace(/M(\d+)/g,(m,i)=>_math[+i]||'');
   return s;
 }
