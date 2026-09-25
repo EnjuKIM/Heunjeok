@@ -840,7 +840,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.51 · 로그인하면 기기 간 자동 동기화 · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.52 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -984,12 +984,14 @@ async function putPhoto(id,dataUrl){
   if(storageMode==='idb')await idbPut('photos',id,{id,dataUrl,at:Date.now()});
   else {state._photos[id]=dataUrl; scheduleSave();}
   photoCache.set(id,dataUrl);
+  if(syncOn)cloudPhotoUpload(id,dataUrl); // 로그인 상태면 클라우드에도 올림(사진 동기화)
 }
 async function getPhoto(id){
   if(photoCache.has(id))return photoCache.get(id);
   let url='';
   if(storageMode==='idb'){const p=await idbGet('photos',id);url=p?p.dataUrl:'';}
   else url=(state._photos&&state._photos[id])||'';
+  if(!url&&syncOn){url=await cloudPhotoFetch(id);if(url){try{await putPhoto(id,url);}catch(e){}}} // 이 기기에 없으면 클라우드에서 받아와 캐시
   photoCache.set(id,url);return url;
 }
 async function delPhoto(id){
@@ -2586,11 +2588,31 @@ function startSync(){
   if(snapUnsub){try{snapUnsub();}catch(e){}}
   snapUnsub=ref.onSnapshot(onCloudSnap,err=>console.warn('snapshot',err));
   scheduleCloudPush();
+  setTimeout(uploadAllLocalPhotos,3000); // 이 기기 사진들을 클라우드로 올림(중복은 건너뜀)
   toast('기기 간 동기화를 시작했어요.');
 }
 function stopSync(){syncOn=false;syncUid=null;if(snapUnsub){try{snapUnsub();}catch(e){}snapUnsub=null;}}
 /* 클라우드로 보낼 형태: 사진(_photos)·API 키는 제외 (사진은 기기별) */
 function cloudPayload(){const {_photos,...rest}=state;return {...rest,settings:{...state.settings,apiKey:''}};}
+/* 사진 동기화: 새 사진은 올리고, 이 기기에 없는 사진은 볼 때 클라우드에서 받아온다 (Firestore users/{uid}/photos/{id}) */
+let uploadedPhotos=(()=>{try{return new Set(JSON.parse(localStorage.getItem('heunjeok_photos_uploaded')||'[]'));}catch(e){return new Set();}})();
+function markPhotoUploaded(id){uploadedPhotos.add(id);try{localStorage.setItem('heunjeok_photos_uploaded',JSON.stringify([...uploadedPhotos]));}catch(e){}}
+async function cloudPhotoUpload(id,dataUrl){
+  if(!syncOn||!syncUid||!fbDb||!dataUrl||uploadedPhotos.has(id))return;
+  try{await fbDb.collection('users').doc(syncUid).collection('photos').doc(id).set({d:dataUrl,at:Date.now()});markPhotoUploaded(id);}
+  catch(e){console.warn('사진 업로드 실패',e);}
+}
+async function cloudPhotoFetch(id){
+  if(!syncOn||!syncUid||!fbDb)return '';
+  try{const s=await fbDb.collection('users').doc(syncUid).collection('photos').doc(id).get();if(s.exists){const d=s.get('d');if(d){markPhotoUploaded(id);return d;}}}
+  catch(e){console.warn('사진 받기 실패',e);}
+  return '';
+}
+async function uploadAllLocalPhotos(){
+  if(!syncOn)return;
+  try{const all=await allPhotos();for(const id in all){if(!uploadedPhotos.has(id)){await cloudPhotoUpload(id,all[id]);}}}
+  catch(e){console.warn('사진 일괄 업로드 실패',e);}
+}
 function onCloudSnap(snap){
   if(!snap||!snap.exists){scheduleCloudPush();return;} // 클라우드가 비어 있으면 내 데이터로 씨앗 넣기
   let cloud=null;try{cloud=JSON.parse(snap.get('blob')||'null');}catch(e){}
@@ -2671,10 +2693,10 @@ function renderSyncSettings(){
   if(!syncReady){box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>연결 준비 중…</p></div></div>`;return;}
   const u=fbAuth&&fbAuth.currentUser;
   if(u){
-    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화 · 켜짐 ✓</b><p>${esc(u.email||'로그인됨')} · PC와 폰이 같은 기록을 공유해요. (글·기록만, 사진은 기기별)</p><p style="margin-top:3px;color:var(--muted)">${lastSyncAt?'마지막 동기화 '+new Date(lastSyncAt).toLocaleString('ko-KR'):'동기화 대기 중…'}</p></div><div class="ctrl"><button class="btn" id="syncOut">로그아웃</button></div></div>`;
+    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화 · 켜짐 ✓</b><p>${esc(u.email||'로그인됨')} · PC와 폰이 같은 기록·사진을 공유해요.</p><p style="margin-top:3px;color:var(--muted)">${lastSyncAt?'마지막 동기화 '+new Date(lastSyncAt).toLocaleString('ko-KR'):'동기화 대기 중…'}</p></div><div class="ctrl"><button class="btn" id="syncOut">로그아웃</button></div></div>`;
     const o=$('#syncOut');if(o)o.onclick=()=>{if(confirm('로그아웃하면 이 기기에서 동기화가 멈춰요. 기록은 이 기기에 그대로 남습니다. 계속할까요?'))fbAuth.signOut();};
   }else{
-    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>구글로 로그인하면 <b>PC와 폰이 자동으로 같은 기록</b>을 공유해요. 로그인하지 않으면 지금처럼 이 기기에만 저장됩니다. (글·기록만 동기화 · 사진은 기기별)</p></div><div class="ctrl"><button class="btn primary" id="syncIn"><svg class="icon sm"><use href="#i-up"/></svg>구글로 로그인</button></div></div>`;
+    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>구글로 로그인하면 <b>PC와 폰이 자동으로 같은 기록·사진</b>을 공유해요. 로그인하지 않으면 지금처럼 이 기기에만 저장됩니다.</p></div><div class="ctrl"><button class="btn primary" id="syncIn"><svg class="icon sm"><use href="#i-up"/></svg>구글로 로그인</button></div></div>`;
     const i=$('#syncIn');if(i)i.onclick=signInGoogle;
   }
 }
