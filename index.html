@@ -186,6 +186,22 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .todo-count{margin-left:4px;font-weight:700;color:var(--muted)}
 #todoSection.collapsed .todo-list,#todoSection.collapsed .todo-add{display:none}
 .day-todos .section-label{margin-top:4px}
+/* 오늘 좋았던 것 */
+#goodSection{margin:4px 0 8px}
+#goodSection:not(.collapsed) .todo-chev{transform:rotate(90deg)}
+#goodSection.collapsed .todo-list,#goodSection.collapsed .todo-add{display:none}
+.good-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:8px}
+.good-item:hover{background:var(--paper2)}
+.good-dot{flex:none;color:var(--gold);font-weight:700;margin-top:1px;width:14px;text-align:center}
+.good-item .todo-text{color:var(--ink);text-decoration:none}
+.good-item:hover .todo-del{opacity:1}
+/* 그날의 흔적 (n년/달 전 오늘) */
+.onthisday{margin:0 0 20px;padding:11px 14px;border-radius:12px;background:var(--paper2);border:1px solid var(--line2);animation:softIn .4s ease}
+.otd-label{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;margin-bottom:8px}
+.otd-chips{display:flex;gap:6px;flex-wrap:wrap}
+.otd-chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--soft);cursor:pointer}
+.otd-chip:hover{border-color:var(--accent);color:var(--accent)}
+.otd-chip b{color:var(--ink);font-weight:700}
 /* 할 일 모아보기 — 날짜별 그룹 가독성 */
 .todo-summary{font-size:12.5px;color:var(--muted);margin:0 2px 10px}
 .todo-summary b{color:var(--soft)}
@@ -704,11 +720,17 @@ input.field-in,select.field-in{width:100%}
   <input type="file" id="photoInput" accept="image/*" multiple class="hidden">
   <div id="backupNote"></div>
   <div id="yestNote"></div>
+  <div id="onThisDay"></div>
   <div id="todaySummary"></div>
   <section id="todoSection">
     <div class="section-label todo-head"><button class="todo-toggle" id="todoToggle" type="button"><svg class="icon sm todo-chev"><use href="#i-chev"/></svg>오늘 할 일<span class="todo-count" id="todoCount"></span></button><button class="todo-carry hidden" id="todoCarry" type="button"></button></div>
     <div class="todo-list" id="todoList"></div>
     <div class="todo-add"><input id="todoInput" placeholder="＋ 할 일 추가" autocomplete="off" enterkeyhint="done"></div>
+  </section>
+  <section id="goodSection">
+    <div class="section-label todo-head"><button class="todo-toggle" id="goodToggle" type="button"><svg class="icon sm todo-chev"><use href="#i-chev"/></svg>오늘 좋았던 것<span class="todo-count" id="goodCount"></span></button></div>
+    <div class="todo-list" id="goodList"></div>
+    <div class="todo-add"><input id="goodInput" placeholder="＋ 좋았던 일·고마웠던 것 한 줄" autocomplete="off" enterkeyhint="done"></div>
   </section>
   <div class="section-label" id="todayFeedLabel">오늘의 기록</div>
   <div id="todayFeed"></div>
@@ -840,7 +862,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.52 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.53 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1011,11 +1033,12 @@ function defaultDoc(){return {
   weekly:{},
   decisionMeta:{},
   todos:{},
+  good:{},
   routineLog:{},
   ddays:[],
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
-    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
+    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
     routineVer:3,
     routine:[{id:'r1',start:'04:30',end:'06:30',label:'봉은사 새벽기도',color:'sage',icon:'🏛️'},{id:'r2',start:'07:00',end:'16:00',label:'밥벌이',color:'blue',icon:'💼'},{id:'r3',start:'17:00',end:'21:00',label:'공부',color:'peach',icon:'📖',note:'(4시간)'},{id:'r4',start:'22:00',end:'04:00',label:'취침',color:'purple',icon:'🌙',note:'충분한 수면으로 내일을 준비합니다',fixed:true}],
     marks:[{id:'m1',time:'04:00',label:'기상',icon:'🌅',side:'out',color:''},{id:'m2',time:'14:00',label:'이후 금식',icon:'🚫',side:'in',color:'blue'}],
@@ -1090,6 +1113,7 @@ function migrate(){let ch=false;
   });
   if(!state.decisionMeta){state.decisionMeta={};ch=true;}
   if(!state.todos){state.todos={};ch=true;}
+  if(!state.good){state.good={};ch=true;}
   if(!state.routineLog){state.routineLog={};ch=true;}
   if(!state.ddays){state.ddays=[];ch=true;}
   if(!state.settings.routine){state.settings.routine=defaultDoc().settings.routine;ch=true;}
@@ -1170,7 +1194,9 @@ function renderToday(){
   renderFirstRun();
   renderBackupNote();
   renderYesterdayNote(today);
+  renderOnThisDay();
   renderTodos();
+  renderGood();
   const es=entriesOf(today);
   const sum=state.summaries[today];
   $('#todaySummary').innerHTML=sum?summaryCardHtml(today,sum):'';
@@ -1210,6 +1236,35 @@ function renderTodos(){
 $('#todoInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addTodo(e.target.value);e.target.value='';}});
 $('#todoCarry').onclick=carryTodos;
 $('#todoToggle').onclick=()=>{state.settings.todosCollapsed=!state.settings.todosCollapsed;scheduleSave();renderTodos();};
+/* ---------- 오늘 좋았던 것 (감사·알아차리기, 3줄이면 충분) ---------- */
+function goodOf(date){return (state.good&&state.good[date])||[];}
+function saveGoodFor(date,arr){if(!state.good)state.good={};if(arr.length)state.good[date]=arr;else delete state.good[date];scheduleSave();}
+function addGood(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();const arr=goodOf(date).slice();arr.push(t);saveGoodFor(date,arr);renderGood();}
+function delGood(i){const date=nowYmd();const arr=goodOf(date).slice();arr.splice(i,1);saveGoodFor(date,arr);renderGood();}
+function renderGood(){
+  const sec=$('#goodSection');if(!sec)return;
+  sec.classList.toggle('collapsed',!!state.settings.goodCollapsed);
+  const date=nowYmd();const list=goodOf(date);
+  const cnt=$('#goodCount');if(cnt)cnt.textContent=list.length?String(list.length):'';
+  const box=$('#goodList');if(!box)return;
+  box.innerHTML=list.length?list.map((g,i)=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre">${renderRich(g)}</div><button class="todo-del" data-gdel="${i}" aria-label="지우기">${icon('i-x')}</button></div>`).join('')
+    :`<div class="todo-empty">오늘 좋았던 일, 고마웠던 것 — 작은 거 한 줄이면 충분해요.</div>`;
+  box.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>delGood(+b.dataset.gdel));
+}
+$('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
+$('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
+/* ---------- 그날의 흔적 (n년/달 전 오늘 조용히 다시 보기) ---------- */
+function renderOnThisDay(){
+  const box=$('#onThisDay');if(!box)return;
+  const today=nowYmd(), td=parseYmd(today), mmdd=today.slice(5), cands=[];
+  for(let y=1;y<=10;y++){const d=`${td.getFullYear()-y}-${mmdd}`;const n=entriesOf(d).length;if(n)cands.push({date:d,label:y+'년 전',n});}
+  [1,3,6].forEach(m=>{const dt=new Date(td.getFullYear(),td.getMonth()-m,td.getDate());if(dt.getDate()!==td.getDate())return;const ds=ymd(dt),n=entriesOf(ds).length;if(n)cands.push({date:ds,label:m+'개월 전',n});});
+  if(!cands.length){box.className='';box.innerHTML='';return;}
+  cands.sort((a,b)=>b.date.localeCompare(a.date));
+  box.className='onthisday';
+  box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-chips">${cands.slice(0,6).map(c=>{const d=parseYmd(c.date);return `<button class="otd-chip" data-otd="${c.date}"><b>${c.label}</b> · ${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${c.n}개</button>`;}).join('')}</div>`;
+  box.querySelectorAll('[data-otd]').forEach(b=>b.onclick=()=>openDay(b.dataset.otd));
+}
 /* ---------- 할 일 모아보기 (all todos view) ---------- */
 let todoFilter='all';
 function todoRowHtml(t,date){return `<div class="todo-item${t.done?' done':''}" data-tdate="${date}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;}
@@ -2309,6 +2364,8 @@ function openDay(date){
   if(sum)html+=summaryCardHtml(date,sum)+'<div style="height:16px"></div>';
   const _tds=todosOf(date).slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
   if(_tds.length)html+=`<div class="day-todos"><div class="section-label">할 일</div><div class="todo-list">${_tds.map(t=>`<div class="todo-item${t.done?' done':''}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div></div><div style="height:14px"></div>`;
+  const _gds=goodOf(date);
+  if(_gds.length)html+=`<div class="day-todos"><div class="section-label">좋았던 것</div><div class="todo-list">${_gds.map(g=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre">${renderRich(g)}</div></div>`).join('')}</div></div><div style="height:14px"></div>`;
   if(es.length){html+=`<div class="feed">${[...es].reverse().map(e=>entryHtml(e,{showTags:true})).join('')}</div>`;}
   else html+=`<div class="empty">${icon('i-note')}<b>이 날의 기록이 없어요.</b><small>아래 ‘보완’으로 기억을 붙이거나, 한 줄 남겨보세요.</small></div>`;
   html+=`<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
@@ -2421,6 +2478,8 @@ function buildMarkdown(from,to){
     }
     const _tds=todosOf(date);
     if(_tds.length){md+='**할 일**\n';_tds.forEach(t=>md+=`- ${t.done?'[x]':'[ ]'} ${t.text}\n`);md+='\n';}
+    const _gds=goodOf(date);
+    if(_gds.length){md+='**좋았던 것**\n';_gds.forEach(g=>md+=`- ${g}\n`);md+='\n';}
     md+='**기록**\n\n';
     entriesOf(date).forEach(e=>{
       const tm=e.time||'시간미상';
@@ -2668,6 +2727,7 @@ function mergeByTime(a,b,tk){const out={};const ks=new Set([...Object.keys(a||{}
 function _todoMax(arr){let m=0;(arr||[]).forEach(t=>{const v=Math.max(t.updatedAt||0,t.createdAt||0);if(v>m)m=v;});return m;}
 function mergeTodos(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const x=(a||{})[k],y=(b||{})[k];out[k]=(x&&y)?(_todoMax(y)>_todoMax(x)?y:x):(x||y);});return out;}
 function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{out[k]=Object.assign({},(a||{})[k]||{},(b||{})[k]||{});});return out;}
+function mergeGood(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const u=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];if(u.length)out[k]=u;});return out;}
 function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
 function mergeDocs(a,b){
   a=a||{};b=b||{};
@@ -2676,6 +2736,7 @@ function mergeDocs(a,b){
   out.summaries=mergeByTime(a.summaries,b.summaries,'generatedAt');
   out.weekly=mergeByTime(a.weekly,b.weekly,'generatedAt');
   out.todos=mergeTodos(a.todos,b.todos);
+  out.good=mergeGood(a.good,b.good);
   out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
   out.ddays=mergeById(a.ddays,b.ddays);
   out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
