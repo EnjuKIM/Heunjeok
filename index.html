@@ -202,17 +202,19 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .otd-chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--soft);cursor:pointer}
 .otd-chip:hover{border-color:var(--accent);color:var(--accent)}
 .otd-chip b{color:var(--ink);font-weight:700}
-/* 중요한 날 별표 */
-.day-star{background:none;border:none;cursor:pointer;color:var(--muted);font-size:26px;line-height:1;padding:2px 6px;align-self:center;transition:color .15s,transform .1s}
+/* 중요한 날 별표 (둥글고 부드러운 별) */
+.day-star{background:none;border:none;cursor:pointer;color:var(--muted);line-height:0;padding:2px 6px;align-self:center;transition:color .15s,transform .1s}
+.star-ic{width:26px;height:26px;display:block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 .today-hero .day-star{margin-left:auto}
 .day-star:hover{color:var(--red)}
 .day-star.on{color:var(--red)}
+.day-star.on .star-ic{fill:var(--red)}
 .day-star:active{transform:scale(.85)}
-.dhead .day-star{font-size:22px;padding:0 4px;align-self:center}
+.dhead .day-star .star-ic{width:22px;height:22px}
 .day{position:relative}
-.cal-star{position:absolute;top:3px;right:4px;font-size:11px;color:var(--red);line-height:1;pointer-events:none}
-.day.important .dn{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--red) 45%,transparent)}
-.day.today.important .dn{box-shadow:none}
+.cal-star-ic{position:absolute;top:3px;right:4px;width:14px;height:14px;fill:var(--red);stroke:var(--red);stroke-width:1;stroke-linejoin:round;pointer-events:none}
+.day.important{box-shadow:inset 0 0 0 1.6px color-mix(in srgb,var(--red) 55%,transparent);background:color-mix(in srgb,var(--red) 7%,transparent)}
+.day.important:hover{background:color-mix(in srgb,var(--red) 12%,transparent)}
 /* 할 일 모아보기 — 날짜별 그룹 가독성 */
 .todo-summary{font-size:12.5px;color:var(--muted);margin:0 2px 10px}
 .todo-summary b{color:var(--soft)}
@@ -679,6 +681,7 @@ input.field-in,select.field-in{width:100%}
 <symbol id="i-checklist" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="m3 6 1.4 1.4L6 5"/><path d="m3 12 1.4 1.4L6 11"/><path d="m3 18 1.4 1.4L6 17"/></symbol>
 <symbol id="i-plan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.3"/><path d="M12 3v5.7"/></symbol>
 <symbol id="i-week" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 15v2M12 11v6M16 13v4"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3 L14.7 8.3 L20.6 9.2 L14.7 13.4 L17.3 19.3 L12 16.6 L6.7 19.3 L9.3 13.4 L3.4 9.2 L9.3 8.3 Z"/></symbol>
 </defs></svg>
 <header class="topbar"><div class="top-inner">
   <div class="brand"><div class="brand-mark"><img src="heunjeok-icon.png" alt=""></div>
@@ -702,7 +705,7 @@ input.field-in,select.field-in{width:100%}
   <div class="today-hero">
     <div class="th-num" id="thNum">—</div>
     <div class="th-meta"><div class="th-en" id="thEn"></div><div class="th-ko" id="thKo"></div></div>
-    <button class="day-star" id="todayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시 (달력에도 보여요)">☆</button>
+    <button class="day-star" id="todayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시 (달력에도 보여요)"><svg class="star-ic"><use href="#i-star"/></svg></button>
   </div>
   <div class="today-sub">오늘 남은 것들을 모아두는 곳</div>
   <div id="firstRun"></div>
@@ -762,7 +765,7 @@ input.field-in,select.field-in{width:100%}
     <span><i class="dot" style="background:var(--gold)"></i>정리</span>
     <span><i class="cal-thumb" style="width:12px;height:12px;box-shadow:none"></i>사진</span>
     <span><i class="dot" style="background:var(--red)"></i>공휴일</span>
-    <span><span style="color:var(--red);font-size:12px;line-height:1">★</span>중요한 날</span>
+    <span><i style="width:13px;height:13px;border-radius:4px;border:1.5px solid color-mix(in srgb,var(--red) 55%,var(--line));background:color-mix(in srgb,var(--red) 8%,transparent)"></i>중요한 날</span>
   </div>
 </section>
 <!-- TIMELINE -->
@@ -875,7 +878,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.54 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.55 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -916,7 +919,7 @@ input.field-in,select.field-in{width:100%}
 <!-- Day modal -->
 <div class="modal" id="dayModal"><article class="dialog wide">
   <header class="dhead"><div><h3 id="dayTitle">—</h3><div class="sub" id="daySub"></div></div>
-    <div style="display:flex;align-items:center;gap:4px"><button class="day-star" id="dayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시">☆</button>
+    <div style="display:flex;align-items:center;gap:4px"><button class="day-star" id="dayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시"><svg class="star-ic"><use href="#i-star"/></svg></button>
     <button class="iconbtn close" aria-label="닫기"><svg class="icon"><use href="#i-x"/></svg></button></div></header>
   <div class="dbody" id="dayBody"></div>
   <footer class="dfoot"><button class="btn ghost close">닫기</button>
@@ -1285,7 +1288,7 @@ function renderOnThisDay(){
 /* ---------- 중요한 날 (별표) ---------- */
 function isImportant(date){return !!(state.important&&state.important[date]);}
 function toggleImportant(date){const im=state.important||(state.important={});if(im[date])delete im[date];else im[date]=1;scheduleSave();}
-function renderTodayStar(){const b=$('#todayStar');if(!b)return;const on=isImportant(nowYmd());b.textContent=on?'★':'☆';b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
+function renderTodayStar(){const b=$('#todayStar');if(!b)return;const on=isImportant(nowYmd());b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
 $('#todayStar').onclick=()=>{const d=nowYmd();toggleImportant(d);renderTodayStar();toast(isImportant(d)?'중요한 날로 표시했어요 ⭐':'표시를 해제했어요');};
 /* ---------- 할 일 모아보기 (all todos view) ---------- */
 let todoFilter='all';
@@ -1436,7 +1439,7 @@ function renderCalendar(){
     const holChip=hol?`<span class="cal-hol" title="${esc(hol)}">${esc(hol)}</span>`:'';
     const ddChip=dds.length?`<span class="cal-dday" title="${esc(dds.map(x=>x.title).join(', '))}">${esc(dds[0].title)}${dds.length>1?' +'+(dds.length-1):''}</span>`:'';
     return `<button class="day${c.out?' out':''}${ds===today?' today':''}${dow===6?' sat':''}${dow===0?' sun':''}${hol?' hol':''}${isImportant(ds)?' important':''}" data-day="${ds}">
-      ${isImportant(ds)?'<span class="cal-star">★</span>':''}<span class="dn">${c.d.getDate()}</span><span class="cal-marks">${marks.join('')}</span>${holChip}${ddChip}</button>`;
+      ${isImportant(ds)?'<svg class="cal-star-ic"><use href="#i-star"/></svg>':''}<span class="dn">${c.d.getDate()}</span><span class="cal-marks">${marks.join('')}</span>${holChip}${ddChip}</button>`;
   }).join('');
   $$('#calGrid .day').forEach(b=>b.onclick=()=>openDay(b.dataset.day));
   hydratePhotos($('#calGrid'));
@@ -2381,7 +2384,7 @@ function openDay(date){
   $('#dayTitle').textContent=korDate(date);
   const es=entriesOf(date);
   $('#daySub').textContent=es.length?`${es.length}개의 기록`:'기록 없음';
-  const _dstar=$('#dayStar');if(_dstar){const setS=()=>{const on=isImportant(date);_dstar.textContent=on?'★':'☆';_dstar.classList.toggle('on',on);};setS();_dstar.onclick=()=>{toggleImportant(date);setS();if(currentView==='today')renderTodayStar();if(currentView==='calendar')renderCalendar();};}
+  const _dstar=$('#dayStar');if(_dstar){const setS=()=>{_dstar.classList.toggle('on',isImportant(date));};setS();_dstar.onclick=()=>{toggleImportant(date);setS();if(currentView==='today')renderTodayStar();if(currentView==='calendar')renderCalendar();};}
   const sum=state.summaries[date];
   let html='';
   if(sum)html+=summaryCardHtml(date,sum)+'<div style="height:16px"></div>';
