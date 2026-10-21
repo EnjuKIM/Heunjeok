@@ -202,6 +202,17 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .otd-chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--soft);cursor:pointer}
 .otd-chip:hover{border-color:var(--accent);color:var(--accent)}
 .otd-chip b{color:var(--ink);font-weight:700}
+/* 중요한 날 별표 */
+.day-star{background:none;border:none;cursor:pointer;color:var(--muted);font-size:26px;line-height:1;padding:2px 6px;align-self:center;transition:color .15s,transform .1s}
+.today-hero .day-star{margin-left:auto}
+.day-star:hover{color:var(--red)}
+.day-star.on{color:var(--red)}
+.day-star:active{transform:scale(.85)}
+.dhead .day-star{font-size:22px;padding:0 4px;align-self:center}
+.day{position:relative}
+.cal-star{position:absolute;top:3px;right:4px;font-size:11px;color:var(--red);line-height:1;pointer-events:none}
+.day.important .dn{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--red) 45%,transparent)}
+.day.today.important .dn{box-shadow:none}
 /* 할 일 모아보기 — 날짜별 그룹 가독성 */
 .todo-summary{font-size:12.5px;color:var(--muted);margin:0 2px 10px}
 .todo-summary b{color:var(--soft)}
@@ -691,6 +702,7 @@ input.field-in,select.field-in{width:100%}
   <div class="today-hero">
     <div class="th-num" id="thNum">—</div>
     <div class="th-meta"><div class="th-en" id="thEn"></div><div class="th-ko" id="thKo"></div></div>
+    <button class="day-star" id="todayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시 (달력에도 보여요)">☆</button>
   </div>
   <div class="today-sub">오늘 남은 것들을 모아두는 곳</div>
   <div id="firstRun"></div>
@@ -750,6 +762,7 @@ input.field-in,select.field-in{width:100%}
     <span><i class="dot" style="background:var(--gold)"></i>정리</span>
     <span><i class="cal-thumb" style="width:12px;height:12px;box-shadow:none"></i>사진</span>
     <span><i class="dot" style="background:var(--red)"></i>공휴일</span>
+    <span><span style="color:var(--red);font-size:12px;line-height:1">★</span>중요한 날</span>
   </div>
 </section>
 <!-- TIMELINE -->
@@ -862,7 +875,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.53 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.54 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -903,7 +916,8 @@ input.field-in,select.field-in{width:100%}
 <!-- Day modal -->
 <div class="modal" id="dayModal"><article class="dialog wide">
   <header class="dhead"><div><h3 id="dayTitle">—</h3><div class="sub" id="daySub"></div></div>
-    <button class="iconbtn close" aria-label="닫기"><svg class="icon"><use href="#i-x"/></svg></button></header>
+    <div style="display:flex;align-items:center;gap:4px"><button class="day-star" id="dayStar" type="button" aria-label="중요한 날 표시" title="중요한 날 표시">☆</button>
+    <button class="iconbtn close" aria-label="닫기"><svg class="icon"><use href="#i-x"/></svg></button></div></header>
   <div class="dbody" id="dayBody"></div>
   <footer class="dfoot"><button class="btn ghost close">닫기</button>
     <div class="right"><button class="btn" id="dayMakeup"><svg class="icon sm"><use href="#i-back"/></svg>보완</button>
@@ -1034,6 +1048,7 @@ function defaultDoc(){return {
   decisionMeta:{},
   todos:{},
   good:{},
+  important:{},
   routineLog:{},
   ddays:[],
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
@@ -1114,6 +1129,7 @@ function migrate(){let ch=false;
   if(!state.decisionMeta){state.decisionMeta={};ch=true;}
   if(!state.todos){state.todos={};ch=true;}
   if(!state.good){state.good={};ch=true;}
+  if(!state.important){state.important={};ch=true;}
   if(!state.routineLog){state.routineLog={};ch=true;}
   if(!state.ddays){state.ddays=[];ch=true;}
   if(!state.settings.routine){state.settings.routine=defaultDoc().settings.routine;ch=true;}
@@ -1191,6 +1207,7 @@ function renderToday(){
   $('#thEn').textContent=`${EN_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
   $('#thKo').textContent=`${WK[now.getDay()]}요일`;
   const _md=$('#memoDate');if(_md)_md.textContent=`${now.getMonth()+1}월 ${now.getDate()}일 (${WK[now.getDay()]})`;
+  renderTodayStar();
   renderFirstRun();
   renderBackupNote();
   renderYesterdayNote(today);
@@ -1265,6 +1282,11 @@ function renderOnThisDay(){
   box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-chips">${cands.slice(0,6).map(c=>{const d=parseYmd(c.date);return `<button class="otd-chip" data-otd="${c.date}"><b>${c.label}</b> · ${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${c.n}개</button>`;}).join('')}</div>`;
   box.querySelectorAll('[data-otd]').forEach(b=>b.onclick=()=>openDay(b.dataset.otd));
 }
+/* ---------- 중요한 날 (별표) ---------- */
+function isImportant(date){return !!(state.important&&state.important[date]);}
+function toggleImportant(date){const im=state.important||(state.important={});if(im[date])delete im[date];else im[date]=1;scheduleSave();}
+function renderTodayStar(){const b=$('#todayStar');if(!b)return;const on=isImportant(nowYmd());b.textContent=on?'★':'☆';b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
+$('#todayStar').onclick=()=>{const d=nowYmd();toggleImportant(d);renderTodayStar();toast(isImportant(d)?'중요한 날로 표시했어요 ⭐':'표시를 해제했어요');};
 /* ---------- 할 일 모아보기 (all todos view) ---------- */
 let todoFilter='all';
 function todoRowHtml(t,date){return `<div class="todo-item${t.done?' done':''}" data-tdate="${date}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;}
@@ -1413,8 +1435,8 @@ function renderCalendar(){
     if(photo)marks.push(`<img class="cal-thumb" data-photo="${photo.photos[0].id}" alt="">`);
     const holChip=hol?`<span class="cal-hol" title="${esc(hol)}">${esc(hol)}</span>`:'';
     const ddChip=dds.length?`<span class="cal-dday" title="${esc(dds.map(x=>x.title).join(', '))}">${esc(dds[0].title)}${dds.length>1?' +'+(dds.length-1):''}</span>`:'';
-    return `<button class="day${c.out?' out':''}${ds===today?' today':''}${dow===6?' sat':''}${dow===0?' sun':''}${hol?' hol':''}" data-day="${ds}">
-      <span class="dn">${c.d.getDate()}</span><span class="cal-marks">${marks.join('')}</span>${holChip}${ddChip}</button>`;
+    return `<button class="day${c.out?' out':''}${ds===today?' today':''}${dow===6?' sat':''}${dow===0?' sun':''}${hol?' hol':''}${isImportant(ds)?' important':''}" data-day="${ds}">
+      ${isImportant(ds)?'<span class="cal-star">★</span>':''}<span class="dn">${c.d.getDate()}</span><span class="cal-marks">${marks.join('')}</span>${holChip}${ddChip}</button>`;
   }).join('');
   $$('#calGrid .day').forEach(b=>b.onclick=()=>openDay(b.dataset.day));
   hydratePhotos($('#calGrid'));
@@ -2359,6 +2381,7 @@ function openDay(date){
   $('#dayTitle').textContent=korDate(date);
   const es=entriesOf(date);
   $('#daySub').textContent=es.length?`${es.length}개의 기록`:'기록 없음';
+  const _dstar=$('#dayStar');if(_dstar){const setS=()=>{const on=isImportant(date);_dstar.textContent=on?'★':'☆';_dstar.classList.toggle('on',on);};setS();_dstar.onclick=()=>{toggleImportant(date);setS();if(currentView==='today')renderTodayStar();if(currentView==='calendar')renderCalendar();};}
   const sum=state.summaries[date];
   let html='';
   if(sum)html+=summaryCardHtml(date,sum)+'<div style="height:16px"></div>';
@@ -2728,6 +2751,7 @@ function _todoMax(arr){let m=0;(arr||[]).forEach(t=>{const v=Math.max(t.updatedA
 function mergeTodos(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const x=(a||{})[k],y=(b||{})[k];out[k]=(x&&y)?(_todoMax(y)>_todoMax(x)?y:x):(x||y);});return out;}
 function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{out[k]=Object.assign({},(a||{})[k]||{},(b||{})[k]||{});});return out;}
 function mergeGood(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const u=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];if(u.length)out[k]=u;});return out;}
+function mergeImportant(a,b){return Object.assign({},a||{},b||{});}
 function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
 function mergeDocs(a,b){
   a=a||{};b=b||{};
@@ -2737,6 +2761,7 @@ function mergeDocs(a,b){
   out.weekly=mergeByTime(a.weekly,b.weekly,'generatedAt');
   out.todos=mergeTodos(a.todos,b.todos);
   out.good=mergeGood(a.good,b.good);
+  out.important=mergeImportant(a.important,b.important);
   out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
   out.ddays=mergeById(a.ddays,b.ddays);
   out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
