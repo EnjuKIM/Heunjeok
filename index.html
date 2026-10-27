@@ -231,6 +231,8 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .note-card-body{font-size:13.5px;color:var(--soft);line-height:1.6;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
 .note-card-when{font-size:11px;color:var(--muted);margin-top:9px}
 .note-card .etags{margin-top:8px}
+.note-view-body{font-size:15px;line-height:1.75;color:var(--ink);max-height:62vh;overflow:auto;padding:2px 2px 4px}
+#noteViewModal .etags{margin-top:14px}
 .note-title-in{width:100%;border:none;background:none;font:700 17px 'Gowun Batang','Batang',serif;color:var(--ink);padding:4px 2px 10px;outline:none;border-bottom:1px solid var(--line2);margin-bottom:12px}
 .note-title-in::placeholder{color:var(--muted);font-weight:400}
 .note-pin{background:none;border:none;cursor:pointer;color:var(--muted);padding:4px 6px;line-height:0;transition:color .15s}
@@ -912,7 +914,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.57 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.58 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1021,6 +1023,18 @@ input.field-in,select.field-in{width:100%}
   </div>
   <footer class="dfoot"><button class="btn danger" id="noteDelete"><svg class="icon sm"><use href="#i-trash"/></svg>삭제</button>
     <div class="right"><button class="btn ghost close">취소</button><button class="btn primary" id="noteSave">저장</button></div></footer>
+</article></div>
+<!-- Note reader (서랍 — 온전히 보기) -->
+<div class="modal" id="noteViewModal"><article class="dialog wide">
+  <header class="dhead"><div><h3 id="noteViewTitle">노트</h3><div class="sub" id="noteViewSub"></div></div>
+    <div style="display:flex;align-items:center;gap:4px"><button class="note-pin" id="noteViewPin" type="button" aria-label="맨 위 고정" title="맨 위 고정"><svg class="icon"><use href="#i-flag"/></svg></button>
+    <button class="iconbtn close" aria-label="닫기"><svg class="icon"><use href="#i-x"/></svg></button></div></header>
+  <div class="dbody">
+    <div id="noteViewBody" class="note-view-body pre"></div>
+    <div class="etags" id="noteViewTags"></div>
+  </div>
+  <footer class="dfoot"><button class="btn danger" id="noteViewDelete"><svg class="icon sm"><use href="#i-trash"/></svg>삭제</button>
+    <div class="right"><button class="btn ghost close">닫기</button><button class="btn primary" id="noteViewEdit"><svg class="icon sm"><use href="#i-edit"/></svg>수정</button></div></footer>
 </article></div>
 <div class="tagmenu" id="tagMenu" role="menu" aria-label="태그 지정"></div>
 <div class="toast" id="toast"></div>
@@ -1767,7 +1781,7 @@ function renderDecisions(){
   $$('#decisionsBody [data-decstatus]').forEach(b=>b.onclick=e=>{e.stopPropagation();const cur=(state.decisionMeta[b.dataset.decstatus]||{}).status||'keep';const o=['keep','changed','cancel'];state.decisionMeta[b.dataset.decstatus]={status:o[(o.indexOf(cur)+1)%3]};scheduleSave();renderDecisions();});
 }
 /* ---------- 서랍 (날짜에 안 묶인 긴 글·스크랩) ---------- */
-let noteFilterQ='', editingNote=null, noteTags=[], notePinned=false;
+let noteFilterQ='', editingNote=null, viewingNote=null, noteTags=[], notePinned=false;
 function activeNotes(){return (state.notes||[]).filter(n=>!n.deletedAt);}
 function findNote(id){return (state.notes||[]).find(n=>n.id===id);}
 function noteWhen(n){const d=new Date(n.updatedAt||n.createdAt||Date.now());const t=new Date();return d.getFullYear()===t.getFullYear()?`${d.getMonth()+1}월 ${d.getDate()}일`:`${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;}
@@ -1783,8 +1797,21 @@ function renderNotes(){
     const tags=(n.tags||[]).length?`<div class="etags">${n.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:'';
     return `<button class="note-card${n.pinned?' pinned':''}" data-note="${esc(n.id)}">${n.pinned?`<span class="note-pinmark">${icon('i-flag')}</span>`:''}${title?`<div class="note-card-title">${renderRich(title)}</div>`:''}${bodyv.trim()?`<div class="note-card-body pre">${renderRich(bodyv.slice(0,700))}</div>`:'<div class="note-card-body" style="color:var(--muted)">(빈 노트)</div>'}${tags}<div class="note-card-when">${noteWhen(n)}</div></button>`;
   }).join('')}</div>`;
-  body.querySelectorAll('[data-note]').forEach(b=>b.onclick=()=>openNote(b.dataset.note));
+  body.querySelectorAll('[data-note]').forEach(b=>b.onclick=()=>viewNote(b.dataset.note));
   mathTypeset(body);
+}
+function viewNote(id){
+  const n=findNote(id);if(!n)return;
+  viewingNote=id;
+  const title=(n.title||'').trim(), bodyv=n.body||'';
+  const h=$('#noteViewTitle');h.innerHTML=title?renderRich(title):'노트';
+  $('#noteViewSub').textContent=noteWhen(n);
+  $('#noteViewBody').innerHTML=bodyv.trim()?renderRich(bodyv):'<span style="color:var(--muted)">(빈 노트)</span>';
+  const tags=(n.tags||[]);
+  $('#noteViewTags').innerHTML=tags.length?tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join(''):'';
+  const pb=$('#noteViewPin');if(pb)pb.classList.toggle('on',!!n.pinned);
+  openModal('#noteViewModal');
+  mathTypeset($('#noteViewModal'));
 }
 function openNote(id){
   const n=id?findNote(id):null;
@@ -1823,6 +1850,9 @@ $('#noteNew').onclick=()=>openNote(null);
 $('#noteSave').onclick=saveNoteFromEditor;
 $('#noteDelete').onclick=deleteNoteFromEditor;
 $('#notePin').onclick=()=>{notePinned=!notePinned;renderNotePin();};
+$('#noteViewEdit').onclick=()=>{const id=viewingNote;closeModal('#noteViewModal');openNote(id);};
+$('#noteViewPin').onclick=()=>{const n=findNote(viewingNote);if(!n)return;n.pinned=!n.pinned;n.updatedAt=Date.now();$('#noteViewPin').classList.toggle('on',!!n.pinned);scheduleSave();renderNotes();};
+$('#noteViewDelete').onclick=()=>{const id=viewingNote;if(!id)return;const n=findNote(id);if(!n)return;n.deletedAt=Date.now();n.updatedAt=Date.now();scheduleSave();closeModal('#noteViewModal');renderNotes();showUndoToast('서랍에서 지웠어요',()=>{const nn=findNote(id);if(nn){nn.deletedAt=null;nn.updatedAt=Date.now();scheduleSave();if(currentView==='notes')renderNotes();}});};
 $('#noteFilter').addEventListener('input',e=>{noteFilterQ=e.target.value;renderNotes();});
 $('#notePaste').onclick=async()=>{let text='';try{if(navigator.clipboard&&navigator.clipboard.readText)text=(await navigator.clipboard.readText()||'');else throw new Error('x');}catch(e){openNote(null);toast('클립보드를 못 읽었어요. 노트에서 Ctrl+V로 붙여넣어 주세요.');return;}openNote(null);if(text){$('#noteBody').value=text;setTimeout(()=>{const el=$('#noteBody');if(el)el.focus();},70);}};
 (function initNoteFmt(){const bar=$('#noteFmtBar');if(!bar)return;bar.querySelectorAll('button').forEach(b=>b.addEventListener('mousedown',ev=>ev.preventDefault()));
