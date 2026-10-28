@@ -621,6 +621,15 @@ input.field-in,select.field-in{width:100%}
 .yest-note .btn{margin-left:auto}
 /* conversation title in timeline */
 .etitle{font-family:'Gowun Batang','Batang',serif;font-size:16px;color:var(--ink);margin-bottom:4px}
+/* 대화 정리 접기 — 제목만 남기기 */
+.efold-head{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:none;border:none;padding:0;margin:0 0 4px;cursor:pointer;color:inherit}
+.efold-head .etitle{margin-bottom:0;flex:1 1 auto;min-width:0}
+.efold-chev{flex:0 0 auto;color:var(--muted);transition:transform .18s;transform:rotate(90deg)}
+.entry.folded .efold-chev{transform:rotate(0deg)}
+.entry.folded .efold-body{display:none}
+.efold-head:hover .etitle{color:var(--accent)}
+.efold-head:hover .efold-chev{color:var(--accent)}
+.entry.folded .efold-head{margin-bottom:0}
 /* search source tag */
 .res .meta b{color:var(--accent);font-weight:600}
 /* summary options */
@@ -937,7 +946,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.59 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.60 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1142,7 +1151,7 @@ function defaultDoc(){return {
   ddays:[],
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
-    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,notesCompact:false,todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
+    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,notesCompact:false,entryCollapsed:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
     routineVer:3,
     routine:[{id:'r1',start:'04:30',end:'06:30',label:'봉은사 새벽기도',color:'sage',icon:'🏛️'},{id:'r2',start:'07:00',end:'16:00',label:'밥벌이',color:'blue',icon:'💼'},{id:'r3',start:'17:00',end:'21:00',label:'공부',color:'peach',icon:'📖',note:'(4시간)'},{id:'r4',start:'22:00',end:'04:00',label:'취침',color:'purple',icon:'🌙',note:'충분한 수면으로 내일을 준비합니다',fixed:true}],
     marks:[{id:'m1',time:'04:00',label:'기상',icon:'🌅',side:'out',color:''},{id:'m2',time:'14:00',label:'이후 금식',icon:'🚫',side:'in',color:'blue'}],
@@ -1246,14 +1255,24 @@ const TAG_HINTS={운동:['달리기','런닝','헬스','운동','스쿼트','조
  결정:['결정','하기로','안 하기로','그만두기로','시작하기로','제출','중단']};
 function suggestTags(text){const t=String(text||'');const out=[];for(const[tag,words]of Object.entries(TAG_HINTS)){if(!state.settings.tags.includes(tag))continue;if(words.some(w=>t.includes(w)))out.push(tag)}return out}
 /* ---------- rendering: entry ---------- */
+function isEntryFolded(id){return (state.settings.entryCollapsed||[]).includes(id);}
+function toggleEntryFold(id,entryEl){
+  const arr=state.settings.entryCollapsed=state.settings.entryCollapsed||[];
+  const i=arr.indexOf(id);let folded;
+  if(i>=0){arr.splice(i,1);folded=false;}else{arr.push(id);folded=true;}
+  scheduleSave();
+  if(entryEl){entryEl.classList.toggle('folded',folded);const h=entryEl.querySelector('[data-efold]');if(h)h.setAttribute('aria-expanded',folded?'false':'true');}
+}
 function entryHtml(e,opts={}){
   const showTags=opts.showTags!==undefined?opts.showTags:!!state.settings.showTimelineTags;
   const kindLabel={line:'',conversation:'대화',makeup:'보완',photo:'사진'}[e.type]||'';
+  const folded=(e.type==='conversation'&&e.analysis&&isEntryFolded(e.id));
   let inner='';
   if(e.type==='conversation'){
     if(e.analysis){
-      if(e.analysis.title)inner+=`<div class="etitle">${esc(e.analysis.title)}</div>`;
-      inner+=analysisHtml(e.analysis);
+      const ttl=e.analysis.title?esc(e.analysis.title):'대화 정리';
+      inner+=`<button class="efold-head" data-efold="${e.id}" aria-expanded="${folded?'false':'true'}"><svg class="icon sm efold-chev"><use href="#i-chev"/></svg><span class="etitle">${ttl}</span></button>`;
+      inner+=`<div class="efold-body">${analysisHtml(e.analysis)}</div>`;
     } else {inner=`<div class="etext pre clamp3">${renderRich(e.original)}</div>
       <div class="needs-ai"><span style="color:var(--muted);font-size:12.5px">아직 정리하지 않은 대화</span>
       <button class="btn sm" data-analyze="${e.id}"><svg class="icon sm"><use href="#i-wand"/></svg>AI로 정리</button></div>`;}
@@ -1264,7 +1283,7 @@ function entryHtml(e,opts={}){
   const tags=(showTags&&(e.tags||[]).length)?`<div class="etags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:'';
   const added=e.id===justAddedId?' just-added':'';
   const timeLabel=e.time?esc(e.time):'미상';
-  return `<div class="entry k-${e.type}${added}" data-entry="${e.id}">
+  return `<div class="entry k-${e.type}${added}${folded?' folded':''}" data-entry="${e.id}">
     <div class="etime">${timeLabel}${kindLabel?`<span class="ekind">${kindLabel}</span>`:''}</div>
     <div class="erail"><span class="edot"></span></div>
     <div class="ebody">${inner}${tags}</div>
@@ -2606,6 +2625,7 @@ document.addEventListener('click',e=>{
   const tg=e.target.closest('[data-tagmenu]');if(tg){openTagMenu(tg.dataset.tagmenu,tg);return;}
   const ed=e.target.closest('[data-edit]');if(ed){openEntry(ed.dataset.edit);return;}
   const an=e.target.closest('[data-analyze]');if(an){analyzeEntry(an.dataset.analyze);return;}
+  const fd=e.target.closest('[data-efold]');if(fd){toggleEntryFold(fd.dataset.efold,fd.closest('.entry'));return;}
   // 메모 모드: 버튼이 숨겨져 있으니 기록을 탭하면 수정 열기
   if(document.documentElement.classList.contains('memo')&&!e.target.closest('button,a,input,textarea')){
     const en=e.target.closest('.entry');if(en&&en.dataset.entry){openEntry(en.dataset.entry);}
