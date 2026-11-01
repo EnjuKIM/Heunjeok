@@ -202,6 +202,14 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .otd-chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--soft);cursor:pointer}
 .otd-chip:hover{border-color:var(--accent);color:var(--accent)}
 .otd-chip b{color:var(--ink);font-weight:700}
+/* 5년 일기 — 연도별로 쌓아 보기 */
+.otd-list{display:flex;flex-direction:column;gap:1px}
+.otd-row{display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:6px 8px;cursor:pointer;color:inherit;transition:background .12s}
+.otd-row:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.otd-when{flex:0 0 auto;display:flex;align-items:baseline;gap:7px;min-width:112px}
+.otd-when b{color:var(--ink);font-weight:700;font-size:12.5px}
+.otd-date{color:var(--muted);font-size:11px}
+.otd-peek{flex:1 1 auto;min-width:0;color:var(--soft);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 중요한 날 별표 (둥글고 부드러운 별) */
 .day-star{background:none;border:none;cursor:pointer;color:var(--muted);line-height:0;padding:2px 6px;align-self:center;transition:color .15s,transform .1s}
 .star-ic{width:26px;height:26px;display:block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
@@ -946,7 +954,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.60 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.62 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1380,16 +1388,27 @@ function renderGood(){
 }
 $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
-/* ---------- 그날의 흔적 (n년/달 전 오늘 조용히 다시 보기) ---------- */
+/* ---------- 그날의 흔적 (5년 일기 — 오늘 화면에 연도별로 쌓아 보기) ---------- */
+function otdPreview(date){
+  const es=entriesOf(date);
+  for(const e of es){
+    let t = e.type==='conversation' ? ((e.analysis&&e.analysis.title)||e.original||'') : (e.original||((e.photos||[]).map(p=>p.caption).find(Boolean))||'');
+    t=stripRich(String(t)).replace(/\s+/g,' ').trim();
+    if(t)return t.length>46?t.slice(0,46)+'…':t;
+  }
+  const ph=es.reduce((s,e)=>s+((e.photos||[]).length),0);
+  return ph?`사진 ${ph}장`:'';
+}
 function renderOnThisDay(){
   const box=$('#onThisDay');if(!box)return;
   const today=nowYmd(), td=parseYmd(today), mmdd=today.slice(5), cands=[];
-  for(let y=1;y<=10;y++){const d=`${td.getFullYear()-y}-${mmdd}`;const n=entriesOf(d).length;if(n)cands.push({date:d,label:y+'년 전',n});}
-  [1,3,6].forEach(m=>{const dt=new Date(td.getFullYear(),td.getMonth()-m,td.getDate());if(dt.getDate()!==td.getDate())return;const ds=ymd(dt),n=entriesOf(ds).length;if(n)cands.push({date:ds,label:m+'개월 전',n});});
+  // 1달 전 (같은 날짜가 있을 때만 — 말일 넘침 방지)
+  {const dt=new Date(td.getFullYear(),td.getMonth()-1,td.getDate());if(dt.getDate()===td.getDate()){const ds=ymd(dt),n=entriesOf(ds).length;if(n)cands.push({date:ds,label:'1달 전',n});}}
+  // 1~5년 전 오늘 (5년 일기처럼)
+  for(let y=1;y<=5;y++){const d=`${td.getFullYear()-y}-${mmdd}`;const n=entriesOf(d).length;if(n)cands.push({date:d,label:y+'년 전',n});}
   if(!cands.length){box.className='';box.innerHTML='';return;}
-  cands.sort((a,b)=>b.date.localeCompare(a.date));
   box.className='onthisday';
-  box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-chips">${cands.slice(0,6).map(c=>{const d=parseYmd(c.date);return `<button class="otd-chip" data-otd="${c.date}"><b>${c.label}</b> · ${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} · ${c.n}개</button>`;}).join('')}</div>`;
+  box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-list">${cands.map(c=>{const d=parseYmd(c.date);const pk=otdPreview(c.date);return `<button class="otd-row" data-otd="${c.date}"><span class="otd-when"><b>${c.label}</b><span class="otd-date">${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}</span></span><span class="otd-peek">${pk?esc(pk):`<span style="color:var(--muted)">기록 ${c.n}개</span>`}</span></button>`;}).join('')}</div>`;
   box.querySelectorAll('[data-otd]').forEach(b=>b.onclick=()=>openDay(b.dataset.otd));
 }
 /* ---------- 중요한 날 (별표) ---------- */
