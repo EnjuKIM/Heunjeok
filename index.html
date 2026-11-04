@@ -954,7 +954,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.64 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.65 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1157,6 +1157,7 @@ function defaultDoc(){return {
   notes:[],
   routineLog:{},
   ddays:[],
+  lastDeleteAt:0,
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
     showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,notesCompact:false,entryCollapsed:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
@@ -1179,6 +1180,7 @@ function docStamp(d){
   for(const e of es){if(e.updatedAt>s)s=e.updatedAt;if(e.deletedAt>s)s=e.deletedAt;if(e.createdAt>s)s=e.createdAt;}
   const td=(d&&d.todos)||{};for(const k in td){for(const t of (td[k]||[])){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}}
   const sm=(d&&d.summaries)||{};for(const k in sm){if(sm[k]&&sm[k].generatedAt>s)s=sm[k].generatedAt;}
+  if(d&&d.lastDeleteAt>s)s=d.lastDeleteAt;
   return s;
 }
 async function saveNow(){
@@ -1346,7 +1348,7 @@ function todosOf(date){return (state.todos&&state.todos[date])||[];}
 function saveTodosFor(date,arr){if(!state.todos)state.todos={};if(arr.length)state.todos[date]=arr;else delete state.todos[date];scheduleSave();}
 function addTodo(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();const arr=todosOf(date).slice();arr.push({id:uid(),text:t,done:false,createdAt:Date.now()});saveTodosFor(date,arr);renderTodos();}
 function toggleTodo(id,date){date=date||nowYmd();saveTodosFor(date,todosOf(date).map(x=>x.id===id?{...x,done:!x.done,updatedAt:Date.now()}:x));afterTodoChange(date);}
-function delTodo(id,date){date=date||nowYmd();saveTodosFor(date,todosOf(date).filter(x=>x.id!==id));afterTodoChange(date);}
+function delTodo(id,date){date=date||nowYmd();state.lastDeleteAt=Date.now();saveTodosFor(date,todosOf(date).filter(x=>x.id!==id));afterTodoChange(date);}
 function afterTodoChange(date){renderTodos();if(currentView==='todos')renderAllTodos();if(dayModalDate&&dayModalDate===date&&$('#dayModal').classList.contains('open'))openDay(date);}
 function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
   const arr=todosOf(date).slice();const have=new Set(arr.map(x=>x.text));let n=0;
