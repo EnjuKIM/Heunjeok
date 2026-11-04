@@ -954,7 +954,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.62 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.63 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1365,8 +1365,9 @@ function renderTodos(){
     :`<div class="todo-empty">아래에 오늘 할 일을 적어보세요.</div>`;
   box.querySelectorAll('[data-tcheck]').forEach(b=>b.onclick=()=>toggleTodo(b.dataset.tcheck));
   box.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>delTodo(b.dataset.tdel));
-  const carry=$('#todoCarry');const uy=todosOf(addDays(date,-1)).filter(x=>!x.done).length;
-  if(carry){if(uy){carry.textContent=`어제 안 끝난 것 ${uy} 가져오기`;carry.classList.remove('hidden');}else carry.classList.add('hidden');}
+  const carry=$('#todoCarry');const haveToday=new Set(todosOf(date).map(x=>x.text));
+  const pending=todosOf(addDays(date,-1)).filter(x=>!x.done&&!haveToday.has(x.text)).length;
+  if(carry){if(pending){carry.textContent=`어제 안 끝난 것 ${pending} 가져오기`;carry.classList.remove('hidden');}else carry.classList.add('hidden');}
 }
 $('#todoInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addTodo(e.target.value);e.target.value='';}});
 $('#todoCarry').onclick=carryTodos;
