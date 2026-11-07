@@ -983,7 +983,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.72 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.73 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -3025,9 +3025,27 @@ async function uploadAllLocalPhotos(){
   try{const all=await allPhotos();for(const id in all){if(!uploadedPhotos.has(id)){await cloudPhotoUpload(id,all[id]);}}}
   catch(e){console.warn('사진 일괄 업로드 실패',e);}
 }
-function onCloudSnap(snap){
+/* 클라우드 문서 읽기: 작으면 blob 한 칸, 크면 photos/_doc_{rev}_{i} 여러 칸으로 나눠 저장 (Firestore 문서 1MB 한계 대응) */
+const CHUNK_CHARS=250000; // UTF-16 25만 자 ≤ 약 750KB(UTF-8) → 한 문서 1MiB 한계 안쪽
+function splitChunks(str){const out=[];let i=0;while(i<str.length){let j=Math.min(i+CHUNK_CHARS,str.length);const c=str.charCodeAt(j-1);if(j<str.length&&c>=0xD800&&c<=0xDBFF)j--;out.push(str.slice(i,j));i=j;}return out;}
+async function readCloudBlob(snap,getter){
+  if(!snap||!snap.exists)return null;
+  const n=snap.get('n')||0,rev=snap.get('rev')||'';
+  if(n&&rev){
+    const ref=fbDb.collection('users').doc(syncUid).collection('photos'); // 기존 보안규칙으로 이미 허용된 하위 컬렉션 재사용 (id 앞에 _doc_)
+    const parts=await Promise.all(Array.from({length:n},(_,i)=>getter(ref.doc('_doc_'+rev+'_'+i))));
+    if(parts.some(p=>!p||!p.exists))throw new Error('chunk-missing');
+    return parts.map(p=>p.get('d')||'').join('');
+  }
+  return snap.get('blob')||null;
+}
+let lastSyncError='';
+function setSyncError(msg){lastSyncError=msg||'';if(currentView==='settings')renderSyncSettings();}
+async function onCloudSnap(snap){
   if(!snap||!snap.exists){scheduleCloudPush();return;} // 클라우드가 비어 있으면 내 데이터로 씨앗 넣기
-  let cloud=null;try{cloud=JSON.parse(snap.get('blob')||'null');}catch(e){}
+  let cloud=null;
+  try{const b=await readCloudBlob(snap,r=>r.get());cloud=JSON.parse(b||'null');}
+  catch(e){console.warn('클라우드 읽기 실패',e);setSyncError('받기 실패: '+shortErr(e));return;}
   if(!cloud)return;
   if($$('.modal.open').length){pendingCloud=cloud;return;} // 편집 중이면 창 닫힐 때 반영
   applyCloud(cloud);
@@ -3048,6 +3066,14 @@ async function applyCloud(cloud){
   if(fullSig(state)!==before)refreshCurrent();
   else if(currentView==='settings')renderSyncSettings();
 }
+/* 앱이 다시 보일 때·버튼 누를 때: 클라우드에서 새로 받아 합치고 내 것도 올림 */
+async function syncNow(){
+  if(!syncOn||!syncUid||!fbDb)return;
+  try{const snap=await fbDb.collection('users').doc(syncUid).get({source:'server'});await onCloudSnap(snap);}
+  catch(e){console.warn('동기화 새로고침 실패',e);setSyncError('받기 실패: '+shortErr(e));}
+  scheduleCloudPush();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&syncOn)setTimeout(syncNow,400);});
 function scheduleCloudPush(){if(!syncOn)return;clearTimeout(pushTimer);pushTimer=setTimeout(runPush,1500);}
 async function runPush(){
   if(!syncOn||!syncUid||!fbDb)return;
@@ -3055,20 +3081,32 @@ async function runPush(){
   pushing=true;pushDirty=false;
   try{
     const ref=fbDb.collection('users').doc(syncUid);
+    const chunkCol=ref.collection('photos');
     await fbDb.runTransaction(async tx=>{
       const snap=await tx.get(ref);
       let cloud=null,cloudBlob=null;
-      if(snap.exists){cloudBlob=snap.get('blob')||null;try{cloud=JSON.parse(cloudBlob||'null');}catch(e){}}
+      const oldN=snap.exists?(snap.get('n')||0):0,oldRev=snap.exists?(snap.get('rev')||''):'';
+      if(snap.exists){cloudBlob=await readCloudBlob(snap,r=>tx.get(r));try{cloud=JSON.parse(cloudBlob||'null');}catch(e){}}
       const merged=cloud?mergeDocs(cloudPayload(),cloud):cloudPayload();
       const blob=JSON.stringify(merged);
       if(blob===cloudBlob)return; // 이미 같으면 쓰지 않음(무한루프 방지)
-      if(blob.length>1000000)throw new Error('blob-too-large');
-      tx.set(ref,{blob:blob,updatedAt:Date.now(),v:3});
+      const now=Date.now();
+      if(blob.length<=CHUNK_CHARS){
+        tx.set(ref,{blob:blob,updatedAt:now,v:3}); // 작으면 예전 방식 그대로(구버전과 호환)
+      }else{
+        const parts=splitChunks(blob);
+        if(parts.length>40)throw new Error('blob-too-large');
+        const rev=now.toString(36)+Math.random().toString(36).slice(2,6);
+        parts.forEach((d,i)=>tx.set(chunkCol.doc('_doc_'+rev+'_'+i),{d:d}));
+        tx.set(ref,{n:parts.length,rev:rev,updatedAt:now,v:4});
+      }
+      if(oldN&&oldRev)for(let i=0;i<oldN;i++)tx.delete(chunkCol.doc('_doc_'+oldRev+'_'+i));
     });
-    lastSyncAt=Date.now();
+    lastSyncAt=Date.now();lastSyncError='';
     if(currentView==='settings')renderSyncSettings();
   }catch(e){
     console.warn('클라우드 전송 실패',e);pushDirty=true;
+    setSyncError('보내기 실패: '+shortErr(e));
     if((e&&e.message||'').indexOf('too-large')>=0)toast('기록이 많아 동기화 용량 한계에 가까워요. 알려주세요.');
   }
   pushing=false;
@@ -3112,7 +3150,8 @@ function renderSyncSettings(){
   if(!syncReady){box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>연결 준비 중…</p></div></div>`;return;}
   const u=fbAuth&&fbAuth.currentUser;
   if(u){
-    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화 · 켜짐 ✓</b><p>${esc(u.email||'로그인됨')} · PC와 폰이 같은 기록·사진을 공유해요.</p><p style="margin-top:3px;color:var(--muted)">${lastSyncAt?'마지막 동기화 '+new Date(lastSyncAt).toLocaleString('ko-KR'):'동기화 대기 중…'}</p></div><div class="ctrl"><button class="btn" id="syncOut">로그아웃</button></div></div>`;
+    box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화 · 켜짐 ✓</b><p>${esc(u.email||'로그인됨')} · PC와 폰이 같은 기록·사진을 공유해요.</p><p style="margin-top:3px;color:var(--muted)">${lastSyncAt?'마지막 동기화 '+new Date(lastSyncAt).toLocaleString('ko-KR'):'동기화 대기 중…'}</p>${lastSyncError?`<p style="margin-top:3px;color:#b4533a">⚠ ${esc(lastSyncError)}</p>`:''}</div><div class="ctrl"><button class="btn" id="syncNow">지금 동기화</button><button class="btn" id="syncOut">로그아웃</button></div></div>`;
+    const sn=$('#syncNow');if(sn)sn.onclick=()=>{syncNow();toast('동기화 중…');};
     const o=$('#syncOut');if(o)o.onclick=()=>{if(confirm('로그아웃하면 이 기기에서 동기화가 멈춰요. 기록은 이 기기에 그대로 남습니다. 계속할까요?'))fbAuth.signOut();};
   }else{
     box.innerHTML=`<div class="set-row"><div class="lbl"><b>기기 간 동기화</b><p>구글로 로그인하면 <b>PC와 폰이 자동으로 같은 기록·사진</b>을 공유해요. 로그인하지 않으면 지금처럼 이 기기에만 저장됩니다.</p></div><div class="ctrl"><button class="btn primary" id="syncIn"><svg class="icon sm"><use href="#i-up"/></svg>구글로 로그인</button></div></div>`;
