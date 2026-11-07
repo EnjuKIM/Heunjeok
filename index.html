@@ -449,8 +449,13 @@ html:not(.memo) .ebody{padding-right:66px}
 .cmt-del{flex:0 0 auto;color:var(--muted);opacity:.45;background:none;border:none;padding:2px;cursor:pointer;align-self:flex-start}
 .cmt-del:hover{opacity:1;color:var(--red)}
 .cmt-empty{color:var(--muted);font-size:13px;margin:6px 0 10px}
-.cmt-add{display:flex;gap:8px;flex-wrap:wrap}
+.cmt-add{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .cmt-add .field-in{flex:1;min-width:160px}
+.cmt-emoji{flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:9px;padding:4px 8px;cursor:pointer;font-size:15px;line-height:1.2}
+.cmt-emoji:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.emoji-bar{flex-basis:100%;width:100%;display:flex;flex-wrap:wrap;gap:3px;margin-top:2px;padding:7px;border:1px solid var(--line2);border-radius:10px;background:var(--paper)}
+.emoji-bar .emo{background:none;border:none;border-radius:8px;padding:4px 6px;font-size:18px;line-height:1;cursor:pointer}
+.emoji-bar .emo:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .needs-ai{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 /* today's page (AI summary) */
 .page{padding:24px 2px 8px;margin-bottom:10px;animation:softIn .5s ease}
@@ -978,7 +983,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.71 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.72 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1383,6 +1388,13 @@ function addComment(date,text){const t=(text||'').trim();if(!t)return;if(!state.
 function delComment(date,id){state.lastDeleteAt=Date.now();const arr=commentsOf(date).filter(c=>c.id!==id);if(arr.length)state.comments[date]=arr;else if(state.comments)delete state.comments[date];scheduleSave();}
 function cmtWhen(at){const d=new Date(at||Date.now());return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;}
 function commentBodyHtml(c){return `<div class="cmt-av">나</div><div class="cmt-main"><div class="cmt-head"><span class="cmt-author">나</span><span class="cmt-when">${cmtWhen(c.at)}</span></div><div class="cmt-text pre">${renderRich(c.text)}</div></div>`;}
+const CMT_EMOJIS=['🙂','😊','😢','😂','🥹','😮','😡','😴','❤️','👍','🙏','✨','🎉','🍀','💪','☕'];
+function emojiBarHtml(){return `<button type="button" class="cmt-emoji" aria-label="이모지">🙂</button>`;}
+function emojiPaletteHtml(){return `<div class="emoji-bar hidden">${CMT_EMOJIS.map(e=>`<button type="button" class="emo" data-emo="${e}">${e}</button>`).join('')}</div>`;}
+function insertAtCursor(inp,txt){try{const s=inp.selectionStart,e=inp.selectionEnd;if(typeof s==='number'){const v=inp.value;inp.value=v.slice(0,s)+txt+v.slice(e);const p=s+txt.length;inp.setSelectionRange(p,p);return;}}catch(_){}inp.value=(inp.value||'')+txt;}
+function wireEmoji(root){if(!root)return;
+  root.querySelectorAll('.cmt-emoji').forEach(btn=>btn.onclick=()=>{const bar=btn.closest('.cmt-add').querySelector('.emoji-bar');if(bar)bar.classList.toggle('hidden');});
+  root.querySelectorAll('.emoji-bar .emo').forEach(b=>b.onclick=()=>{const wrap=b.closest('.cmt-add');const inp=wrap&&wrap.querySelector('input');if(inp){insertAtCursor(inp,b.dataset.emo);inp.focus();}});}
 function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
   const arr=todosOf(date).slice();const have=new Set(arr.map(x=>x.text));let n=0;
   undone.forEach(u=>{if(!have.has(u.text)){arr.push({id:uid(),text:u.text,done:false,createdAt:Date.now()});have.add(u.text);n++;}});
@@ -1455,13 +1467,14 @@ function renderOnThisDay(){
   box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-list">${cands.map(c=>{
     const d=parseYmd(c.date);const pk=otdPreview(c.date);
     const cmtsHtml=commentsOf(c.date).map(x=>`<div class="cmt">${commentBodyHtml(x)}<button class="cmt-del" data-otdcdel="${x.id}" data-otdcdate="${c.date}" aria-label="삭제">${icon('i-x')}</button></div>`).join('');
-    return `<div class="otd-item"><button class="otd-row" data-otd="${c.date}"><span class="otd-when"><b>${c.label}</b><span class="otd-date">${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}</span></span><span class="otd-peek">${pk?esc(pk):`<span style="color:var(--muted)">기록 ${c.n}개</span>`}</span></button><div class="otd-cmts">${cmtsHtml}<div class="cmt-add"><input class="field-in" data-otdci="${c.date}" placeholder="그때의 나에게 한마디…" autocomplete="off"><button class="btn sm" data-otdca="${c.date}">남기기</button></div></div></div>`;
+    return `<div class="otd-item"><button class="otd-row" data-otd="${c.date}"><span class="otd-when"><b>${c.label}</b><span class="otd-date">${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}</span></span><span class="otd-peek">${pk?esc(pk):`<span style="color:var(--muted)">기록 ${c.n}개</span>`}</span></button><div class="otd-cmts">${cmtsHtml}<div class="cmt-add"><input class="field-in" data-otdci="${c.date}" placeholder="그때의 나에게 한마디…" autocomplete="off">${emojiBarHtml()}<button class="btn sm" data-otdca="${c.date}">남기기</button>${emojiPaletteHtml()}</div></div></div>`;
   }).join('')}</div>`;
   box.querySelectorAll('[data-otd]').forEach(b=>b.onclick=()=>openDay(b.dataset.otd));
   const addAt=(date)=>{const inp=box.querySelector('[data-otdci="'+date+'"]');const v=(inp&&inp.value||'').trim();if(!v)return;addComment(date,v);renderOnThisDay();const ni=$('#onThisDay').querySelector('[data-otdci="'+date+'"]');if(ni)ni.focus();};
   box.querySelectorAll('[data-otdca]').forEach(b=>b.onclick=()=>addAt(b.dataset.otdca));
   box.querySelectorAll('[data-otdci]').forEach(inp=>inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();addAt(inp.dataset.otdci);}}));
   box.querySelectorAll('[data-otdcdel]').forEach(b=>b.onclick=()=>{delComment(b.dataset.otdcdate,b.dataset.otdcdel);renderOnThisDay();});
+  wireEmoji(box);
 }
 /* ---------- 중요한 날 (별표) ---------- */
 function isImportant(date){return !!(state.important&&state.important[date]);}
@@ -2671,7 +2684,7 @@ function dayCommentsInner(date){
   const cmts=commentsOf(date);
   return `<div class="section-label">그때의 나에게</div>
     ${cmts.length?`<div class="cmt-list">${cmts.map(c=>`<div class="cmt">${commentBodyHtml(c)}<button class="cmt-del" data-cmtdel="${c.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div>`:'<div class="cmt-empty">이 날의 나에게 하고 싶은 말을 남겨보세요.</div>'}
-    <div class="cmt-add"><input id="cmtInput" class="field-in" placeholder="그때의 나에게 한마디…" autocomplete="off"><button class="btn" id="cmtAdd">남기기</button></div>`;
+    <div class="cmt-add"><input id="cmtInput" class="field-in" placeholder="그때의 나에게 한마디…" autocomplete="off">${emojiBarHtml()}<button class="btn" id="cmtAdd">남기기</button>${emojiPaletteHtml()}</div>`;
 }
 function wireDayComments(date){
   const box=$('#dayComments');if(!box)return;
@@ -2679,6 +2692,7 @@ function wireDayComments(date){
   const ab=$('#cmtAdd');if(ab)ab.onclick=add;
   const ci=$('#cmtInput');if(ci)ci.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();add();}});
   box.querySelectorAll('[data-cmtdel]').forEach(b=>b.onclick=()=>{delComment(date,b.dataset.cmtdel);box.innerHTML=dayCommentsInner(date);wireDayComments(date);});
+  wireEmoji(box);
 }
 function openDay(date,focusId){
   dayModalDate=date;
