@@ -212,8 +212,7 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .otd-peek{flex:1 1 auto;min-width:0;color:var(--soft);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .otd-item+.otd-item{margin-top:7px;border-top:1px solid var(--line2);padding-top:7px}
 .otd-cmts{padding:4px 6px 2px 10px}
-.otd-cmts .cmt{margin-top:5px;padding:7px 9px}
-.otd-cmts .cmt-add{margin-top:7px}
+.otd-cmts .cmt-add{margin-top:8px}
 .otd-cmts .cmt-add .field-in{flex:1;min-width:120px;font-size:12.5px;padding:6px 9px}
 /* 중요한 날 별표 (둥글고 부드러운 별) */
 .day-star{background:none;border:none;cursor:pointer;color:var(--muted);line-height:0;padding:2px 6px;align-self:center;transition:color .15s,transform .1s}
@@ -438,11 +437,16 @@ html:not(.memo) .ebody{padding-right:66px}
 @keyframes entryFlash{0%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}100%{box-shadow:0 0 0 3px transparent}}
 .daycomments{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
 .daycomments .section-label{color:var(--accent)}
-.cmt-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 10px}
-.cmt{display:flex;align-items:flex-start;gap:9px;background:color-mix(in srgb,var(--accent) 7%,var(--paper));border:1px solid var(--line2);border-radius:11px;padding:9px 11px}
-.cmt-meta{flex:0 0 auto;font-size:11px;color:var(--accent);font-weight:700;margin-top:2px;white-space:nowrap}
-.cmt-text{flex:1;line-height:1.62}
-.cmt-del{flex:0 0 auto;color:var(--muted);opacity:.55;background:none;border:none;padding:2px;cursor:pointer}
+.cmt-list{display:flex;flex-direction:column;gap:0;margin:6px 0 8px}
+.cmt{display:flex;align-items:flex-start;gap:10px;background:none;border:none;border-radius:0;padding:10px 2px;border-bottom:1px solid var(--line2)}
+.cmt:last-child{border-bottom:none}
+.cmt-av{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--accent) 24%,var(--paper));color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-top:1px}
+.cmt-main{flex:1 1 auto;min-width:0}
+.cmt-head{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
+.cmt-author{font-size:12.5px;font-weight:700;color:var(--ink)}
+.cmt-when{font-size:11px;color:var(--muted)}
+.cmt-text{line-height:1.6;font-size:13.5px;color:var(--ink)}
+.cmt-del{flex:0 0 auto;color:var(--muted);opacity:.45;background:none;border:none;padding:2px;cursor:pointer;align-self:flex-start}
 .cmt-del:hover{opacity:1;color:var(--red)}
 .cmt-empty{color:var(--muted);font-size:13px;margin:6px 0 10px}
 .cmt-add{display:flex;gap:8px;flex-wrap:wrap}
@@ -974,7 +978,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.70 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.71 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1378,6 +1382,7 @@ function commentsOf(date){return (state.comments&&state.comments[date])||[];}
 function addComment(date,text){const t=(text||'').trim();if(!t)return;if(!state.comments)state.comments={};const arr=commentsOf(date).slice();arr.push({id:uid(),text:t,at:Date.now()});state.comments[date]=arr;scheduleSave();}
 function delComment(date,id){state.lastDeleteAt=Date.now();const arr=commentsOf(date).filter(c=>c.id!==id);if(arr.length)state.comments[date]=arr;else if(state.comments)delete state.comments[date];scheduleSave();}
 function cmtWhen(at){const d=new Date(at||Date.now());return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;}
+function commentBodyHtml(c){return `<div class="cmt-av">나</div><div class="cmt-main"><div class="cmt-head"><span class="cmt-author">나</span><span class="cmt-when">${cmtWhen(c.at)}</span></div><div class="cmt-text pre">${renderRich(c.text)}</div></div>`;}
 function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
   const arr=todosOf(date).slice();const have=new Set(arr.map(x=>x.text));let n=0;
   undone.forEach(u=>{if(!have.has(u.text)){arr.push({id:uid(),text:u.text,done:false,createdAt:Date.now()});have.add(u.text);n++;}});
@@ -1449,7 +1454,7 @@ function renderOnThisDay(){
   box.className='onthisday';
   box.innerHTML=`<div class="otd-label">그날의 흔적</div><div class="otd-list">${cands.map(c=>{
     const d=parseYmd(c.date);const pk=otdPreview(c.date);
-    const cmtsHtml=commentsOf(c.date).map(x=>`<div class="cmt"><span class="cmt-meta">${cmtWhen(x.at)}</span><div class="cmt-text pre">${renderRich(x.text)}</div><button class="cmt-del" data-otdcdel="${x.id}" data-otdcdate="${c.date}" aria-label="삭제">${icon('i-x')}</button></div>`).join('');
+    const cmtsHtml=commentsOf(c.date).map(x=>`<div class="cmt">${commentBodyHtml(x)}<button class="cmt-del" data-otdcdel="${x.id}" data-otdcdate="${c.date}" aria-label="삭제">${icon('i-x')}</button></div>`).join('');
     return `<div class="otd-item"><button class="otd-row" data-otd="${c.date}"><span class="otd-when"><b>${c.label}</b><span class="otd-date">${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}</span></span><span class="otd-peek">${pk?esc(pk):`<span style="color:var(--muted)">기록 ${c.n}개</span>`}</span></button><div class="otd-cmts">${cmtsHtml}<div class="cmt-add"><input class="field-in" data-otdci="${c.date}" placeholder="그때의 나에게 한마디…" autocomplete="off"><button class="btn sm" data-otdca="${c.date}">남기기</button></div></div></div>`;
   }).join('')}</div>`;
   box.querySelectorAll('[data-otd]').forEach(b=>b.onclick=()=>openDay(b.dataset.otd));
@@ -2665,7 +2670,7 @@ let dayModalDate=null;
 function dayCommentsInner(date){
   const cmts=commentsOf(date);
   return `<div class="section-label">그때의 나에게</div>
-    ${cmts.length?`<div class="cmt-list">${cmts.map(c=>`<div class="cmt"><span class="cmt-meta">${cmtWhen(c.at)}</span><div class="cmt-text pre">${renderRich(c.text)}</div><button class="cmt-del" data-cmtdel="${c.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div>`:'<div class="cmt-empty">이 날의 나에게 하고 싶은 말을 남겨보세요.</div>'}
+    ${cmts.length?`<div class="cmt-list">${cmts.map(c=>`<div class="cmt">${commentBodyHtml(c)}<button class="cmt-del" data-cmtdel="${c.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div>`:'<div class="cmt-empty">이 날의 나에게 하고 싶은 말을 남겨보세요.</div>'}
     <div class="cmt-add"><input id="cmtInput" class="field-in" placeholder="그때의 나에게 한마디…" autocomplete="off"><button class="btn" id="cmtAdd">남기기</button></div>`;
 }
 function wireDayComments(date){
