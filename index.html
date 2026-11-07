@@ -429,6 +429,8 @@ html:not(.memo) .ebody{padding-right:66px}
 .ablock li{margin:2px 0;line-height:1.62}
 .ablock-insights h5{color:var(--red)}
 .ablock-insights li{font-weight:700;color:var(--red)}
+.entry.flash{animation:entryFlash 1.7s ease-out}
+@keyframes entryFlash{0%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}100%{box-shadow:0 0 0 3px transparent}}
 .needs-ai{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 /* today's page (AI summary) */
 .page{padding:24px 2px 8px;margin-bottom:10px;animation:softIn .5s ease}
@@ -956,7 +958,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.67 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.68 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1141,6 +1143,7 @@ async function delPhoto(id){
   if(storageMode==='idb')await idbDel('photos',id);
   else if(state._photos)delete state._photos[id];
   photoCache.delete(id);
+  if(syncOn)cloudPhotoDelete(id);
 }
 async function allPhotos(){
   if(storageMode==='idb'){const raw=await idbAll('photos');const out={};for(const k in raw)out[k]=raw[k].dataUrl;return out;}
@@ -1490,6 +1493,7 @@ function summaryCardHtml(date,s){
     events:summaryArray(s.events),
     thoughts:summaryArray(s.thoughts||s.text),
     decisions:summaryArray(s.decisions),
+    insights:summaryArray(s.insights),
     quotes:summaryArray(s.quotes)
   };
   // 이전 버전의 oneLiner가 있으면 과거 데이터 호환용으로만 보여준다.
@@ -1786,18 +1790,18 @@ function renderSearch(){
   body.innerHTML=rows.slice(0,300).map(r=>{
     const rt=stripRich(r.text);
     const snip=q?highlight(snippet(rt,q),q):esc(snip0(rt));
-    const nav=r.week?`data-week="${r.week}"`:`data-day="${r.date}"`;
+    const nav=r.week?`data-week="${r.week}"`:`data-day="${r.date}"${r.id?` data-entry="${r.id}"`:''}`;
     const staleMark=r.stale?' · <span style="color:var(--warn)">이 정리본은 원본 변경 전 내용</span>':'';
     return `<div class="res" ${nav}><div class="meta">${korShort(r.date)} · <b>${esc(r.src)}</b>${staleMark}</div><div class="pre">${snip}</div></div>`;
   }).join('');
-  $$('#searchBody .res').forEach(b=>b.onclick=()=>{if(b.dataset.week){weekRef=b.dataset.week;switchView('weekly');}else openDay(b.dataset.day);});
+  $$('#searchBody .res').forEach(b=>b.onclick=()=>{if(b.dataset.week){weekRef=b.dataset.week;switchView('weekly');}else openDay(b.dataset.day,b.dataset.entry);});
 }
 function buildSearchRows(q){
   const rows=[], tagActive=searchTags.size>0;
   activeEntries().forEach(e=>{
     if(tagActive&&![...searchTags].every(t=>(e.tags||[]).includes(t)))return;
     const text=entryText(e);
-    if(!q||text.toLowerCase().includes(q))rows.push({date:e.date,src:kindOf(e),text,order:e.time||'',type:e.type});
+    if(!q||text.toLowerCase().includes(q))rows.push({date:e.date,src:kindOf(e),text,order:e.time||'',type:e.type,id:e.id});
   });
   if(!tagActive){
     for(const date in state.summaries){const s=state.summaries[date];const text=[summaryArray(s.events).join(' '),summaryArray(s.thoughts||s.text).join(' '),summaryArray(s.decisions).join(' '),summaryArray(s.quotes).join(' '),s.oneLiner||''].join(' ').trim();
@@ -2366,11 +2370,12 @@ function afterSummary(date){
 }
 /* edit summary manually */
 function editSummary(date){
-  const s=state.summaries[date]||{events:[],thoughts:[],decisions:[],quotes:[]};
+  const s=state.summaries[date]||{events:[],thoughts:[],decisions:[],insights:[],quotes:[]};
   const vals={
     events:summaryArray(s.events),
     thoughts:summaryArray(s.thoughts||s.text),
     decisions:summaryArray(s.decisions),
+    insights:summaryArray(s.insights),
     quotes:summaryArray(s.quotes)
   };
   if(!vals.quotes.length&&s.oneLiner)vals.quotes=summaryArray(s.oneLiner);
@@ -2380,6 +2385,7 @@ function editSummary(date){
     <div class="field"><label>한 일 (한 줄에 하나)</label><textarea id="edEvents" style="min-height:80px">${esc(vals.events.join('\n'))}</textarea></div>
     <div class="field"><label>생각 (한 줄에 하나)</label><textarea id="edThoughts" style="min-height:80px">${esc(vals.thoughts.join('\n'))}</textarea></div>
     <div class="field"><label>결정 (한 줄에 하나)</label><textarea id="edDecisions" style="min-height:70px">${esc(vals.decisions.join('\n'))}</textarea></div>
+    <div class="field"><label>요점·통찰 — AI가 뽑은 통찰 (한 줄에 하나)</label><textarea id="edInsights" style="min-height:70px">${esc(vals.insights.join('\n'))}</textarea></div>
     <div class="field"><label>남겨둘 말 — 사용자 실제 표현만 (한 줄에 하나)</label><textarea id="edQuotes" style="min-height:70px">${esc(vals.quotes.join('\n'))}</textarea></div>`;
   $('#entryDelete').classList.remove('hidden');
   $('#entryDelete').onclick=()=>{if(confirm('이 날의 요약을 삭제할까요? (원문 기록은 남습니다)')){delete state.summaries[date];scheduleSave();closeModal('#entryModal');refreshCurrent();toast('요약을 삭제했어요.')}};
@@ -2388,6 +2394,7 @@ function editSummary(date){
       events:$('#edEvents').value.split('\n').map(x=>x.trim()).filter(Boolean),
       thoughts:$('#edThoughts').value.split('\n').map(x=>x.trim()).filter(Boolean),
       decisions:$('#edDecisions').value.split('\n').map(x=>x.trim()).filter(Boolean),
+      insights:$('#edInsights').value.split('\n').map(x=>x.trim()).filter(Boolean),
       quotes:$('#edQuotes').value.split('\n').map(x=>x.trim()).filter(Boolean),
       source:'manual',
       generatedAt:Date.now()
@@ -2623,7 +2630,7 @@ function openTrash(){
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='edOriginal'){const en=findEntry(editingEntry);if(en)renderSuggest(en);}});
 /* ---------- day modal ---------- */
 let dayModalDate=null;
-function openDay(date){
+function openDay(date,focusId){
   dayModalDate=date;
   $('#dayTitle').textContent=korDate(date);
   const es=entriesOf(date);
@@ -2649,6 +2656,7 @@ function openDay(date){
   $$('#dayBody [data-daytdel]').forEach(b=>b.onclick=()=>delTodo(b.dataset.daytdel,date));
   $('#dayQuick').addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();addDayLine();}});
   openModal('#dayModal');
+  if(focusId)setTimeout(()=>{const el=$('#dayBody').querySelector('[data-entry="'+focusId+'"]');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1700);}},90);
 }
 function addDayLine(){const v=$('#dayQuick').value.trim();if(!v)return;const e=addEntry({type:'line',date:dayModalDate,time:dayModalDate===nowYmd()?hm(new Date()):'',original:v});applyAutoTags(e);scheduleSave();openDay(dayModalDate);refreshCurrent();toast('추가했어요.')}
 $('#dayMakeup').onclick=()=>{closeModal('#dayModal');openMakeup(dayModalDate)};
@@ -2931,6 +2939,12 @@ async function cloudPhotoUpload(id,dataUrl){
   if(!syncOn||!syncUid||!fbDb||!dataUrl||uploadedPhotos.has(id))return;
   try{await fbDb.collection('users').doc(syncUid).collection('photos').doc(id).set({d:dataUrl,at:Date.now()});markPhotoUploaded(id);}
   catch(e){console.warn('사진 업로드 실패',e);}
+}
+async function cloudPhotoDelete(id){
+  if(!syncOn||!syncUid||!fbDb)return;
+  try{await fbDb.collection('users').doc(syncUid).collection('photos').doc(id).delete();}
+  catch(e){console.warn('사진 삭제(클라우드) 실패',e);}
+  uploadedPhotos.delete(id);try{localStorage.setItem('heunjeok_photos_uploaded',JSON.stringify([...uploadedPhotos]));}catch(e){}
 }
 async function cloudPhotoFetch(id){
   if(!syncOn||!syncUid||!fbDb)return '';
