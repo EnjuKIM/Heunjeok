@@ -989,7 +989,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.74 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.75 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -2961,6 +2961,24 @@ async function reloadFromStorage(){
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
+/* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
+const APP_VER='4.75';
+async function checkAppUpdate(){
+  if(!/^https?:$/.test(location.protocol))return;
+  try{
+    const r=await fetch(location.pathname+'?_v='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const m=(await r.text()).match(/흔적 v(\d+)\.(\d+)/);if(!m)return;
+    const [a,b]=APP_VER.split('.').map(Number),na=+m[1],nb=+m[2];
+    if(na>a||(na===a&&nb>b)){
+      const key='heunjeok_upd_'+m[1]+'.'+m[2];
+      try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1');}catch(e){}
+      if($$('.modal.open').length)return; // 편집 중엔 건드리지 않음
+      await saveChain;location.replace(location.pathname+'?_v='+Date.now()+location.hash);
+    }
+  }catch(e){}
+}
+setTimeout(checkAppUpdate,1500);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkAppUpdate();});
 /* ---------- 기기 간 동기화 (Firebase, 로그인해야만 작동하는 opt-in) ---------- */
 const FIREBASE_CONFIG={apiKey:"AIzaSyCHxER0mBk7iIZ2lnXVStVQ7VhIycWKTt8",authDomain:"heunjeok-d821e.firebaseapp.com",projectId:"heunjeok-d821e",storageBucket:"heunjeok-d821e.firebasestorage.app",messagingSenderId:"466690526331",appId:"1:466690526331:web:23d274d54edb9fa527a6de"};
 let fbApp=null,fbAuth=null,fbDb=null,snapUnsub=null,pushTimer=null,pushing=false,pushDirty=false;
