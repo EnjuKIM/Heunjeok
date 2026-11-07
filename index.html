@@ -431,6 +431,17 @@ html:not(.memo) .ebody{padding-right:66px}
 .ablock-insights li{font-weight:700;color:var(--red)}
 .entry.flash{animation:entryFlash 1.7s ease-out}
 @keyframes entryFlash{0%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent)}100%{box-shadow:0 0 0 3px transparent}}
+.daycomments{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
+.daycomments .section-label{color:var(--accent)}
+.cmt-list{display:flex;flex-direction:column;gap:8px;margin:8px 0 10px}
+.cmt{display:flex;align-items:flex-start;gap:9px;background:color-mix(in srgb,var(--accent) 7%,var(--paper));border:1px solid var(--line2);border-radius:11px;padding:9px 11px}
+.cmt-meta{flex:0 0 auto;font-size:11px;color:var(--accent);font-weight:700;margin-top:2px;white-space:nowrap}
+.cmt-text{flex:1;line-height:1.62}
+.cmt-del{flex:0 0 auto;color:var(--muted);opacity:.55;background:none;border:none;padding:2px;cursor:pointer}
+.cmt-del:hover{opacity:1;color:var(--red)}
+.cmt-empty{color:var(--muted);font-size:13px;margin:6px 0 10px}
+.cmt-add{display:flex;gap:8px;flex-wrap:wrap}
+.cmt-add .field-in{flex:1;min-width:160px}
 .needs-ai{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 /* today's page (AI summary) */
 .page{padding:24px 2px 8px;margin-bottom:10px;animation:softIn .5s ease}
@@ -958,7 +969,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.68 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.69 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1162,6 +1173,7 @@ function defaultDoc(){return {
   notes:[],
   routineLog:{},
   ddays:[],
+  comments:{},
   lastDeleteAt:0,
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
@@ -1246,6 +1258,7 @@ function migrate(){let ch=false;
   if(!state.notes){state.notes=[];ch=true;}
   if(!state.routineLog){state.routineLog={};ch=true;}
   if(!state.ddays){state.ddays=[];ch=true;}
+  if(!state.comments){state.comments={};ch=true;}
   if(!state.settings.routine){state.settings.routine=defaultDoc().settings.routine;ch=true;}
   if(!((state.settings.routineVer||0)>=2)){state.settings.routine=defaultDoc().settings.routine;state.settings.marks=defaultDoc().settings.marks;state.settings.routineVer=2;ch=true;}
   if((state.settings.routineVer||0)<3){(state.settings.routine||[]).forEach(b=>{if(b.label==='취침'&&b.fixed===undefined)b.fixed=true;});state.settings.routineVer=3;ch=true;}
@@ -1355,6 +1368,11 @@ function addTodo(text){const t=(text||'').trim();if(!t)return;const date=nowYmd(
 function toggleTodo(id,date){date=date||nowYmd();saveTodosFor(date,todosOf(date).map(x=>x.id===id?{...x,done:!x.done,updatedAt:Date.now()}:x));afterTodoChange(date);}
 function delTodo(id,date){date=date||nowYmd();state.lastDeleteAt=Date.now();saveTodosFor(date,todosOf(date).filter(x=>x.id!==id));afterTodoChange(date);}
 function afterTodoChange(date){renderTodos();if(currentView==='todos')renderAllTodos();if(dayModalDate&&dayModalDate===date&&$('#dayModal').classList.contains('open'))openDay(date);}
+/* ---------- 그때의 나에게 (과거 기록에 다는 댓글) — 원문은 절대 변경하지 않고 날짜별로 따로 저장 ---------- */
+function commentsOf(date){return (state.comments&&state.comments[date])||[];}
+function addComment(date,text){const t=(text||'').trim();if(!t)return;if(!state.comments)state.comments={};const arr=commentsOf(date).slice();arr.push({id:uid(),text:t,at:Date.now()});state.comments[date]=arr;scheduleSave();}
+function delComment(date,id){state.lastDeleteAt=Date.now();const arr=commentsOf(date).filter(c=>c.id!==id);if(arr.length)state.comments[date]=arr;else if(state.comments)delete state.comments[date];scheduleSave();}
+function cmtWhen(at){const d=new Date(at||Date.now());return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;}
 function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
   const arr=todosOf(date).slice();const have=new Set(arr.map(x=>x.text));let n=0;
   undone.forEach(u=>{if(!have.has(u.text)){arr.push({id:uid(),text:u.text,done:false,createdAt:Date.now()});have.add(u.text);n++;}});
@@ -1808,6 +1826,7 @@ function buildSearchRows(q){
       if(text&&(!q||text.toLowerCase().includes(q)))rows.push({date,src:'오늘 정리',text,order:'zz',stale:!!s.stale,type:'summary'});}
     for(const mon in state.weekly){const w=state.weekly[mon];const text=[(w.did||[]).join(' '),(w.worried||[]).join(' '),(w.decisions||[]).join(' '),w.mood||'',(w.carryOver||[]).join(' '),w.text||''].join(' ').trim();
       if(text&&(!q||text.toLowerCase().includes(q)))rows.push({date:mon,src:'주간회고',text,order:'zzz',stale:!!w.stale,week:mon,type:'weekly'});}
+    for(const date in (state.comments||{})){const ctext=commentsOf(date).map(c=>c.text).join(' ').trim();if(ctext&&(!q||ctext.toLowerCase().includes(q)))rows.push({date,src:'그때의 나에게',text:ctext,order:'zy',type:'comment'});}
   }
   const from=($('#sfFrom')&&$('#sfFrom').value)||'',to=($('#sfTo')&&$('#sfTo').value)||'',typ=($('#sfType')&&$('#sfType').value)||'';
   let out=rows;
@@ -2630,6 +2649,19 @@ function openTrash(){
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='edOriginal'){const en=findEntry(editingEntry);if(en)renderSuggest(en);}});
 /* ---------- day modal ---------- */
 let dayModalDate=null;
+function dayCommentsInner(date){
+  const cmts=commentsOf(date);
+  return `<div class="section-label">그때의 나에게</div>
+    ${cmts.length?`<div class="cmt-list">${cmts.map(c=>`<div class="cmt"><span class="cmt-meta">${cmtWhen(c.at)}</span><div class="cmt-text pre">${renderRich(c.text)}</div><button class="cmt-del" data-cmtdel="${c.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div>`:'<div class="cmt-empty">이 날의 나에게 하고 싶은 말을 남겨보세요.</div>'}
+    <div class="cmt-add"><input id="cmtInput" class="field-in" placeholder="그때의 나에게 한마디…" autocomplete="off"><button class="btn" id="cmtAdd">남기기</button></div>`;
+}
+function wireDayComments(date){
+  const box=$('#dayComments');if(!box)return;
+  const add=()=>{const el=$('#cmtInput');const v=(el&&el.value||'').trim();if(!v)return;addComment(date,v);box.innerHTML=dayCommentsInner(date);wireDayComments(date);const ni=$('#cmtInput');if(ni)ni.focus();if(currentView==='calendar')renderCalendar();};
+  const ab=$('#cmtAdd');if(ab)ab.onclick=add;
+  const ci=$('#cmtInput');if(ci)ci.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();add();}});
+  box.querySelectorAll('[data-cmtdel]').forEach(b=>b.onclick=()=>{delComment(date,b.dataset.cmtdel);box.innerHTML=dayCommentsInner(date);wireDayComments(date);});
+}
 function openDay(date,focusId){
   dayModalDate=date;
   $('#dayTitle').textContent=korDate(date);
@@ -2648,12 +2680,14 @@ function openDay(date,focusId){
   html+=`<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <input id="dayQuick" class="field-in" style="flex:1;min-width:180px" placeholder="이 날에 한 줄 추가…" autocomplete="off">
     <button class="btn" id="dayAdd">추가</button></div>`;
+  if(date<nowYmd())html+=`<div class="daycomments" id="dayComments">${dayCommentsInner(date)}</div>`;
   $('#dayBody').innerHTML=html;
   hydratePhotos($('#dayBody'));
   wireSummaryCard(date,$('#dayBody'));
   $('#dayAdd').onclick=addDayLine;
   $$('#dayBody [data-daytcheck]').forEach(b=>b.onclick=()=>toggleTodo(b.dataset.daytcheck,date));
   $$('#dayBody [data-daytdel]').forEach(b=>b.onclick=()=>delTodo(b.dataset.daytdel,date));
+  if(date<nowYmd())wireDayComments(date);
   $('#dayQuick').addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.isComposing&&ev.keyCode!==229){ev.preventDefault();addDayLine();}});
   openModal('#dayModal');
   if(focusId)setTimeout(()=>{const el=$('#dayBody').querySelector('[data-entry="'+focusId+'"]');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1700);}},90);
@@ -2765,6 +2799,8 @@ function buildMarkdown(from,to){
       if(e.type==='conversation'&&e.analysis){md+=`- ${tm} (대화 정리${e.analysis.title?' · '+e.analysis.title:''})\n`;ANALYSIS_KEYS.forEach(([k,l])=>{(e.analysis[k]||[]).forEach(x=>md+=`  - ${l}: ${x}\n`)});}
       else md+=`- ${tm} ${mdInline(e.original).replace(/\n/g,' ')}${(e.photos||[]).length?` (사진 ${e.photos.length}장)`:''}\n`;
     });
+    const _cmts=commentsOf(date);
+    if(_cmts.length){md+='\n**그때의 나에게**\n';_cmts.forEach(c=>md+=`- (${cmtWhen(c.at)}) ${mdInline(c.text).replace(/\n/g,' ')}\n`);}
     md+='\n---\n\n';
   });
   return md;
@@ -3015,6 +3051,7 @@ function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{
 function mergeGood(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const u=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];if(u.length)out[k]=u;});return out;}
 function mergeImportant(a,b){return Object.assign({},a||{},b||{});}
 function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
+function mergeComments(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const m=new Map();(((a||{})[k])||[]).forEach(c=>{if(c&&c.id)m.set(c.id,c);});(((b||{})[k])||[]).forEach(c=>{if(c&&c.id&&!m.has(c.id))m.set(c.id,c);});const v=[...m.values()].sort((x,y)=>(x.at||0)-(y.at||0));if(v.length)out[k]=v;});return out;}
 function mergeDocs(a,b){
   a=a||{};b=b||{};
   const out={version:3};
@@ -3027,6 +3064,7 @@ function mergeDocs(a,b){
   out.notes=mergeEntries(a.notes,b.notes);
   out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
   out.ddays=mergeById(a.ddays,b.ddays);
+  out.comments=mergeComments(a.comments,b.comments);
   out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
   const sa=(a.settings&&a.settings.updatedAt)||0,sb=(b.settings&&b.settings.updatedAt)||0;
   const aEmpty=!((a.entries||[]).some(e=>!e.deletedAt))&&!Object.keys(a.summaries||{}).length;
