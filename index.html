@@ -989,7 +989,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.75 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.76 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1452,6 +1452,14 @@ $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
 /* ---------- 그날의 흔적 (5년 일기 — 오늘 화면에 연도별로 쌓아 보기) ---------- */
 function otdPreview(date){
+  // 그날 '오늘 정리(요약)'가 있으면 그 한 줄을 먼저 — 날것의 첫 글보다 차분히 압축된 '그날의 얼굴'
+  const sm=state.summaries&&state.summaries[date];
+  if(sm){
+    for(const src of [sm.oneLiner, sm.insights]){
+      const t=stripRich(String(summaryArray(src)[0]||'')).replace(/\s+/g,' ').trim();
+      if(t)return t.length>46?t.slice(0,46)+'…':t;
+    }
+  }
   const es=entriesOf(date);
   for(const e of es){
     let t = e.type==='conversation' ? ((e.analysis&&e.analysis.title)||e.original||'') : (e.original||((e.photos||[]).map(p=>p.caption).find(Boolean))||'');
@@ -2962,7 +2970,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.75';
+const APP_VER='4.76';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
