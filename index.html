@@ -190,6 +190,8 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 #goodSection{margin:4px 0 8px}
 #goodSection:not(.collapsed) .todo-chev{transform:rotate(90deg)}
 #goodSection.collapsed .todo-list,#goodSection.collapsed .todo-add{display:none}
+#shopSection:not(.collapsed) .todo-chev{transform:rotate(90deg)}
+#shopSection.collapsed .todo-list,#shopSection.collapsed .todo-add{display:none}
 .good-item{display:flex;align-items:flex-start;gap:9px;padding:7px 4px;border-radius:8px}
 .good-item:hover{background:var(--paper2)}
 .good-dot{flex:none;color:var(--gold);font-weight:700;margin-top:1px;width:14px;text-align:center}
@@ -848,6 +850,11 @@ input.field-in,select.field-in{width:100%}
     <div class="todo-list" id="goodList"></div>
     <div class="todo-add"><input id="goodInput" placeholder="＋ 좋았던 일·고마웠던 것 한 줄" autocomplete="off" enterkeyhint="done"></div>
   </section>
+  <section id="shopSection">
+    <div class="section-label todo-head"><button class="todo-toggle" id="shopToggle" type="button"><svg class="icon sm todo-chev"><use href="#i-chev"/></svg>쇼핑 리스트<span class="todo-count" id="shopCount"></span></button><button class="todo-carry hidden" id="shopClear" type="button"></button></div>
+    <div class="todo-list" id="shopList"></div>
+    <div class="todo-add"><input id="shopInput" placeholder="＋ 살 것 추가" autocomplete="off" enterkeyhint="done"></div>
+  </section>
   <div class="section-label" id="todayFeedLabel">오늘의 기록</div>
   <div id="todayFeed"></div>
 </section>
@@ -989,7 +996,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.76 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.77 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1194,10 +1201,11 @@ function defaultDoc(){return {
   routineLog:{},
   ddays:[],
   comments:{},
+  shopping:[],
   lastDeleteAt:0,
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
-    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,notesCompact:false,entryCollapsed:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
+    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,shopCollapsed:false,notesCompact:false,entryCollapsed:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
     routineVer:3,
     routine:[{id:'r1',start:'04:30',end:'06:30',label:'봉은사 새벽기도',color:'sage',icon:'🏛️'},{id:'r2',start:'07:00',end:'16:00',label:'밥벌이',color:'blue',icon:'💼'},{id:'r3',start:'17:00',end:'21:00',label:'공부',color:'peach',icon:'📖',note:'(4시간)'},{id:'r4',start:'22:00',end:'04:00',label:'취침',color:'purple',icon:'🌙',note:'충분한 수면으로 내일을 준비합니다',fixed:true}],
     marks:[{id:'m1',time:'04:00',label:'기상',icon:'🌅',side:'out',color:''},{id:'m2',time:'14:00',label:'이후 금식',icon:'🚫',side:'in',color:'blue'}],
@@ -1216,6 +1224,7 @@ function docStamp(d){
   let s=0;const es=(d&&d.entries)||[];
   for(const e of es){if(e.updatedAt>s)s=e.updatedAt;if(e.deletedAt>s)s=e.deletedAt;if(e.createdAt>s)s=e.createdAt;}
   const td=(d&&d.todos)||{};for(const k in td){for(const t of (td[k]||[])){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}}
+  const shp=(d&&d.shopping)||[];for(const t of shp){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}
   const sm=(d&&d.summaries)||{};for(const k in sm){if(sm[k]&&sm[k].generatedAt>s)s=sm[k].generatedAt;}
   if(d&&d.lastDeleteAt>s)s=d.lastDeleteAt;
   return s;
@@ -1279,6 +1288,7 @@ function migrate(){let ch=false;
   if(!state.routineLog){state.routineLog={};ch=true;}
   if(!state.ddays){state.ddays=[];ch=true;}
   if(!state.comments){state.comments={};ch=true;}
+  if(!state.shopping){state.shopping=[];ch=true;}
   if(!state.settings.routine){state.settings.routine=defaultDoc().settings.routine;ch=true;}
   if(!((state.settings.routineVer||0)>=2)){state.settings.routine=defaultDoc().settings.routine;state.settings.marks=defaultDoc().settings.marks;state.settings.routineVer=2;ch=true;}
   if((state.settings.routineVer||0)<3){(state.settings.routine||[]).forEach(b=>{if(b.label==='취침'&&b.fixed===undefined)b.fixed=true;});state.settings.routineVer=3;ch=true;}
@@ -1372,6 +1382,7 @@ function renderToday(){
   renderOnThisDay();
   renderTodos();
   renderGood();
+  renderShopping();
   const es=entriesOf(today);
   const sum=state.summaries[today];
   $('#todaySummary').innerHTML=sum?summaryCardHtml(today,sum):'';
@@ -1450,6 +1461,29 @@ function renderGood(){
 }
 $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
+/* ---------- 쇼핑 리스트 (상시 목록 — 날짜에 묶이지 않고, 살 때까지 남아 있다가 담으면 비움) ---------- */
+function shopItems(){return state.shopping||(state.shopping=[]);}
+function addShop(text){const t=(text||'').trim();if(!t)return;shopItems().push({id:uid(),text:t,done:false,createdAt:Date.now(),updatedAt:Date.now()});scheduleSave();renderShopping();}
+function toggleShop(id){const it=shopItems().find(x=>x.id===id);if(!it)return;it.done=!it.done;it.updatedAt=Date.now();scheduleSave();renderShopping();}
+function delShop(id){state.shopping=shopItems().filter(x=>x.id!==id);state.lastDeleteAt=Date.now();scheduleSave();renderShopping();}
+function clearBoughtShop(){const rest=shopItems().filter(x=>!x.done);if(rest.length!==shopItems().length){state.shopping=rest;state.lastDeleteAt=Date.now();scheduleSave();renderShopping();}}
+function renderShopping(){
+  const sec=$('#shopSection');if(!sec)return;
+  sec.classList.toggle('collapsed',!!state.settings.shopCollapsed);
+  const list=shopItems().slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
+  const un=list.filter(x=>!x.done).length;
+  const cnt=$('#shopCount');if(cnt)cnt.textContent=un?String(un):(list.length?'✓':'');
+  const box=$('#shopList');
+  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-shop="${t.id}"><button class="todo-check" data-shcheck="${t.id}" aria-label="담음">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-shdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
+    :`<div class="todo-empty">사야 할 것을 적어두면, 담을 때까지 남아 있어요.</div>`;
+  box.querySelectorAll('[data-shcheck]').forEach(b=>b.onclick=()=>toggleShop(b.dataset.shcheck));
+  box.querySelectorAll('[data-shdel]').forEach(b=>b.onclick=()=>delShop(b.dataset.shdel));
+  const clr=$('#shopClear');
+  if(clr){const bought=list.filter(x=>x.done).length;if(bought){clr.textContent=`담은 것 ${bought} 비우기`;clr.classList.remove('hidden');}else clr.classList.add('hidden');}
+}
+$('#shopInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addShop(e.target.value);e.target.value='';}});
+$('#shopToggle').onclick=()=>{state.settings.shopCollapsed=!state.settings.shopCollapsed;scheduleSave();renderShopping();};
+$('#shopClear').onclick=clearBoughtShop;
 /* ---------- 그날의 흔적 (5년 일기 — 오늘 화면에 연도별로 쌓아 보기) ---------- */
 function otdPreview(date){
   // 그날 '오늘 정리(요약)'가 있으면 그 한 줄을 먼저 — 날것의 첫 글보다 차분히 압축된 '그날의 얼굴'
@@ -2970,7 +3004,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.76';
+const APP_VER='4.77';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
@@ -3153,6 +3187,7 @@ function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{
 function mergeGood(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const u=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];if(u.length)out[k]=u;});return out;}
 function mergeImportant(a,b){return Object.assign({},a||{},b||{});}
 function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
+function mergeShopping(a,b){const m=new Map();const put=arr=>{(arr||[]).forEach(x=>{if(!x||!x.id)return;const p=m.get(x.id);if(!p||(x.updatedAt||x.createdAt||0)>(p.updatedAt||p.createdAt||0))m.set(x.id,x);});};put(a);put(b);return [...m.values()].sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));}
 function mergeComments(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const m=new Map();(((a||{})[k])||[]).forEach(c=>{if(c&&c.id)m.set(c.id,c);});(((b||{})[k])||[]).forEach(c=>{if(c&&c.id&&!m.has(c.id))m.set(c.id,c);});const v=[...m.values()].sort((x,y)=>(x.at||0)-(y.at||0));if(v.length)out[k]=v;});return out;}
 function mergeDocs(a,b){
   a=a||{};b=b||{};
@@ -3167,6 +3202,7 @@ function mergeDocs(a,b){
   out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
   out.ddays=mergeById(a.ddays,b.ddays);
   out.comments=mergeComments(a.comments,b.comments);
+  out.shopping=mergeShopping(a.shopping,b.shopping);
   out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
   const sa=(a.settings&&a.settings.updatedAt)||0,sb=(b.settings&&b.settings.updatedAt)||0;
   const aEmpty=!((a.entries||[]).some(e=>!e.deletedAt))&&!Object.keys(a.summaries||{}).length;
