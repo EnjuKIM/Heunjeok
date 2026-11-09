@@ -999,7 +999,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.83 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.84 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -2142,8 +2142,10 @@ function refreshCurrent(){switchView(currentView)}
 function openModal(id){$(id).classList.add('open');document.body.style.overflow='hidden'}
 function closeModal(id){$(id).classList.remove('open');if(!$$('.modal.open').length){document.body.style.overflow='';if(pendingCloud){const c=pendingCloud;pendingCloud=null;applyCloud(c);}}}
 $$('.modal .close').forEach(b=>b.onclick=e=>closeModal('#'+e.target.closest('.modal').id));
-$$('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)closeModal('#'+m.id)}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=$$('.modal.open').pop();if(open)closeModal('#'+open.id)}});
+/* 작성량이 많은 편집 모달은 배경 클릭·ESC로 실수로 닫혀 쓰던 글이 날아가지 않게 보호 (✕·취소 버튼으로만 닫힘) */
+const GUARDED_MODALS=new Set(['noteModal','convModal','entryModal']);
+$$('.modal').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m&&!GUARDED_MODALS.has(m.id))closeModal('#'+m.id)}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=$$('.modal.open').pop();if(open){if(GUARDED_MODALS.has(open.id))toast('작성 중이에요 · ✕ 또는 취소로 닫아주세요');else closeModal('#'+open.id);}}});
 /* ---------- quick capture ---------- */
 const quickBox=$('#quick'), quickTa=$('#quickInput');
 const quickTagSel=new Set();
@@ -2728,16 +2730,26 @@ function showUndoToast(msg,onUndo){
   toastTimer=setTimeout(()=>t.classList.remove('show'),5200);
 }
 /* trash view */
+function trashedNotes(){return (state.notes||[]).filter(n=>n.deletedAt).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));}
 function openTrash(){
-  const list=trashedEntries();
-  $('#trashBody').innerHTML=list.length?list.map(e=>{
+  const es=trashedEntries(), ns=trashedNotes();
+  const entryRows=es.map(e=>{
     const preview=(e.type==='conversation'&&e.analysis&&e.analysis.title)?e.analysis.title:((e.original||'').slice(0,80)||((e.photos||[]).length?`사진 ${e.photos.length}장`:'(내용 없음)'));
     const daysLeft=Math.max(0,TRASH_DAYS-Math.floor((Date.now()-e.deletedAt)/86400000));
     return `<div class="trash-item"><div><div class="t-text pre">${esc(stripRich(preview))}</div><div class="t-meta">${korShort(e.date)} · ${({line:'한 줄',conversation:'대화',makeup:'보완',photo:'사진'}[e.type]||'기록')} · ${daysLeft}일 뒤 완전 삭제</div></div>
       <div class="t-actions"><button class="btn sm" data-restore="${e.id}"><svg class="icon sm"><use href="#i-restore"/></svg>복원</button><button class="btn sm danger" data-purge="${e.id}">완전 삭제</button></div></div>`;
-  }).join(''):`<div class="empty">${icon('i-trash')}<b>휴지통이 비어 있어요.</b></div>`;
+  }).join('');
+  const noteRows=ns.map(n=>{
+    const preview=(n.title||'').trim()||stripRich(n.body||'').replace(/\s+/g,' ').slice(0,80)||'(빈 노트)';
+    const daysLeft=Math.max(0,TRASH_DAYS-Math.floor((Date.now()-n.deletedAt)/86400000));
+    return `<div class="trash-item"><div><div class="t-text pre">${esc(preview)}</div><div class="t-meta">${noteWhen(n)} · 서랍 · ${daysLeft}일 뒤 완전 삭제</div></div>
+      <div class="t-actions"><button class="btn sm" data-nrestore="${n.id}"><svg class="icon sm"><use href="#i-restore"/></svg>복원</button><button class="btn sm danger" data-npurge="${n.id}">완전 삭제</button></div></div>`;
+  }).join('');
+  $('#trashBody').innerHTML=(entryRows+noteRows)||`<div class="empty">${icon('i-trash')}<b>휴지통이 비어 있어요.</b></div>`;
   $$('#trashBody [data-restore]').forEach(b=>b.onclick=()=>{const e=findEntry(b.dataset.restore);if(e){e.deletedAt=null;markDayStale(e.date);scheduleSave();openTrash();refreshCurrent();renderSettings();toast('복원했어요.');}});
   $$('#trashBody [data-purge]').forEach(b=>b.onclick=()=>{const e=findEntry(b.dataset.purge);if(e&&confirm('이 기록을 완전히 삭제할까요? 되돌릴 수 없습니다.')){(e.photos||[]).forEach(p=>delPhoto(p.id));state.entries=state.entries.filter(x=>x.id!==e.id);scheduleSave();openTrash();refreshCurrent();renderSettings();toast('완전히 삭제했어요.');}});
+  $$('#trashBody [data-nrestore]').forEach(b=>b.onclick=()=>{const n=findNote(b.dataset.nrestore);if(n){n.deletedAt=null;n.updatedAt=Date.now();scheduleSave();openTrash();if(currentView==='notes')renderNotes();renderSettings();toast('복원했어요.');}});
+  $$('#trashBody [data-npurge]').forEach(b=>b.onclick=()=>{const n=findNote(b.dataset.npurge);if(n&&confirm('이 서랍 노트를 완전히 삭제할까요? 되돌릴 수 없습니다.')){state.notes=(state.notes||[]).filter(x=>x.id!==n.id);scheduleSave();openTrash();if(currentView==='notes')renderNotes();renderSettings();toast('완전히 삭제했어요.');}});
   openModal('#trashModal');
 }
 /* live suggest update while typing original */
@@ -3020,7 +3032,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.83';
+const APP_VER='4.84';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
