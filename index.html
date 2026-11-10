@@ -16,19 +16,19 @@
 :root{
   --bg:#f4efe4;--paper:#faf6ec;--paper2:#efe8d8;--ink:#37332c;--soft:#5b564c;--muted:#98917f;
   --line:#e6dfcd;--line2:#efe9db;--accent:#6d8779;--accent-2:#7d90a3;--accent-soft:#e6ede7;
-  --gold:#b08a4e;--red:#a9584c;--warn:#bf8b46;
+  --gold:#b08a4e;--red:#a9584c;--warn:#bf8b46;--cmt:#2d6cdf;
   --shadow:0 1px 2px rgba(70,58,38,.04),0 10px 30px rgba(70,58,38,.05);--radius:16px;
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){
   --bg:#211e1a;--paper:#29251f;--paper2:#322d26;--ink:#e8e1d2;--soft:#c4bdad;--muted:#948d7d;
   --line:#3a352d;--line2:#322e28;--accent:#8ba493;--accent-2:#8fa2b3;--accent-soft:#2c352e;
-  --gold:#c7a367;--red:#cf8073;--warn:#cf9a54;
+  --gold:#c7a367;--red:#cf8073;--warn:#cf9a54;--cmt:#6ea8ff;
   --shadow:0 1px 2px rgba(0,0,0,.18),0 12px 34px rgba(0,0,0,.30);
 }}
 :root[data-theme=dark]{
   --bg:#211e1a;--paper:#29251f;--paper2:#322d26;--ink:#e8e1d2;--soft:#c4bdad;--muted:#948d7d;
   --line:#3a352d;--line2:#322e28;--accent:#8ba493;--accent-2:#8fa2b3;--accent-soft:#2c352e;
-  --gold:#c7a367;--red:#cf8073;--warn:#cf9a54;
+  --gold:#c7a367;--red:#cf8073;--warn:#cf9a54;--cmt:#6ea8ff;
   --shadow:0 1px 2px rgba(0,0,0,.18),0 12px 34px rgba(0,0,0,.30);
 }
 *{box-sizing:border-box}
@@ -451,7 +451,7 @@ html:not(.memo) .ebody{padding-right:66px}
 .cmt-head{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
 .cmt-author{font-size:12.5px;font-weight:700;color:var(--ink)}
 .cmt-when{font-size:11px;color:var(--muted)}
-.cmt-text{line-height:1.6;font-size:13.5px;color:var(--ink)}
+.cmt-text{line-height:1.6;font-size:13.5px;color:var(--cmt)}
 .cmt-del{flex:0 0 auto;color:var(--muted);opacity:.45;background:none;border:none;padding:2px;cursor:pointer;align-self:flex-start}
 .cmt-del:hover{opacity:1;color:var(--red)}
 .cmt-empty{color:var(--muted);font-size:13px;margin:6px 0 10px}
@@ -1001,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.85 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.86 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -3047,7 +3047,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.85';
+const APP_VER='4.86';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
