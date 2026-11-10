@@ -179,6 +179,8 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .todo-add input::placeholder{color:var(--muted)}
 .todo-add input:focus{border-bottom-color:color-mix(in srgb,var(--accent) 50%,var(--line));outline:none}
 .todo-empty{font-size:12.5px;color:var(--muted);padding:5px 4px}
+.todo-text[data-tedit],.todo-text[data-gedit],.todo-text[data-shedit]{cursor:text}
+.inline-edit{flex:1;min-width:0;border:none;border-bottom:1.5px solid var(--accent);background:transparent;font:inherit;font-size:14.5px;line-height:1.55;color:var(--ink);padding:1px 0;outline:none}
 .todo-toggle{display:inline-flex;align-items:center;gap:5px;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;padding:0}
 .todo-toggle:hover{color:var(--soft)}
 .todo-chev{color:var(--muted);transition:transform .18s}
@@ -894,7 +896,7 @@ input.field-in,select.field-in{width:100%}
       <label class="sf-lbl">기간</label>
       <input type="date" id="sfFrom" class="sf-date" aria-label="시작일"><span class="sf-tilde">~</span><input type="date" id="sfTo" class="sf-date" aria-label="종료일">
       <label class="sf-lbl">종류</label>
-      <select id="sfType" class="sf-sel"><option value="">전체</option><option value="line">한 줄</option><option value="conversation">대화</option><option value="photo">사진</option><option value="makeup">보완</option><option value="summary">오늘 정리</option><option value="weekly">주간회고</option></select>
+      <select id="sfType" class="sf-sel"><option value="">전체</option><option value="line">한 줄</option><option value="conversation">대화</option><option value="photo">사진</option><option value="makeup">보완</option><option value="summary">오늘 정리</option><option value="weekly">주간회고</option><option value="note">서랍</option><option value="todo">할 일</option></select>
       <button class="btn sm" id="sfClear" type="button">초기화</button>
     </div>
   </div>
@@ -999,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.84 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.85 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1420,6 +1422,14 @@ function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1))
   undone.forEach(u=>{if(!have.has(u.text)){arr.push({id:uid(),text:u.text,done:false,createdAt:Date.now()});have.add(u.text);n++;}});
   state.settings.carriedDay=date;
   saveTodosFor(date,arr);renderTodos();toast(n?`${n}개 가져왔어요.`:'이미 다 있어요.');}
+/* 항목 텍스트를 눌러 그 자리에서 수정 (할 일·좋았던 것·쇼핑) — 오타 나도 지우고 다시 쓸 필요 없음 */
+function inlineEditStart(el,current,onDone){
+  const inp=document.createElement('input');inp.type='text';inp.className='inline-edit';inp.value=current;
+  el.replaceWith(inp);inp.focus();try{inp.setSelectionRange(current.length,current.length);}catch(e){}
+  let settled=false;const finish=save=>{if(settled)return;settled=true;onDone(save?inp.value.trim():null);};
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();finish(true);}else if(e.key==='Escape'){e.preventDefault();finish(false);}});
+  inp.addEventListener('blur',()=>finish(true));
+}
 function renderTodos(){
   const sec=$('#todoSection');if(!sec)return;
   if(!state.settings.showTodos){sec.classList.add('hidden');return;}
@@ -1429,10 +1439,11 @@ function renderTodos(){
   const list=todosOf(date).slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
   const cnt=$('#todoCount');if(cnt){const un=list.filter(x=>!x.done).length;cnt.textContent=un?String(un):(list.length?'✓':'');}
   const box=$('#todoList');
-  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-todo="${t.id}"><button class="todo-check" data-tcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-tdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
+  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-todo="${t.id}"><button class="todo-check" data-tcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre" data-tedit="${t.id}" title="눌러서 수정">${esc(t.text)}</div><button class="todo-del" data-tdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
     :`<div class="todo-empty">아래에 오늘 할 일을 적어보세요.</div>`;
   box.querySelectorAll('[data-tcheck]').forEach(b=>b.onclick=()=>toggleTodo(b.dataset.tcheck));
   box.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>delTodo(b.dataset.tdel));
+  box.querySelectorAll('[data-tedit]').forEach(el=>el.onclick=()=>{const t=todosOf(date).find(x=>x.id===el.dataset.tedit);if(!t)return;inlineEditStart(el,t.text,v=>{if(v&&v!==t.text){t.text=v;t.updatedAt=Date.now();scheduleSave();}renderTodos();});});
   const carry=$('#todoCarry');
   if(carry){
     if(state.settings.carriedDay===date){carry.classList.add('hidden');}
@@ -1458,9 +1469,10 @@ function renderGood(){
   const date=nowYmd();const list=goodOf(date);
   const cnt=$('#goodCount');if(cnt)cnt.textContent=list.length?String(list.length):'';
   const box=$('#goodList');if(!box)return;
-  box.innerHTML=list.length?list.map((g,i)=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre">${renderRich(g)}</div><button class="todo-del" data-gdel="${i}" aria-label="지우기">${icon('i-x')}</button></div>`).join('')
+  box.innerHTML=list.length?list.map((g,i)=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre" data-gedit="${i}" title="눌러서 수정">${renderRich(g)}</div><button class="todo-del" data-gdel="${i}" aria-label="지우기">${icon('i-x')}</button></div>`).join('')
     :`<div class="todo-empty">오늘 좋았던 일, 고마웠던 것 — 작은 거 한 줄이면 충분해요.</div>`;
   box.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>delGood(+b.dataset.gdel));
+  box.querySelectorAll('[data-gedit]').forEach(el=>el.onclick=()=>{const i=+el.dataset.gedit;const cur=goodOf(date)[i]||'';inlineEditStart(el,cur,v=>{if(v&&v!==cur){const a=goodOf(date).slice();a[i]=v;saveGoodFor(date,a);}renderGood();});});
 }
 $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
@@ -1477,10 +1489,11 @@ function renderShopping(){
   const un=list.filter(x=>!x.done).length;
   const cnt=$('#shopCount');if(cnt)cnt.textContent=un?String(un):(list.length?'✓':'');
   const box=$('#shopList');
-  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-shop="${t.id}"><button class="todo-check" data-shcheck="${t.id}" aria-label="담음">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-shdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
+  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-shop="${t.id}"><button class="todo-check" data-shcheck="${t.id}" aria-label="담음">${icon('i-check')}</button><div class="todo-text pre" data-shedit="${t.id}" title="눌러서 수정">${esc(t.text)}</div><button class="todo-del" data-shdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
     :`<div class="todo-empty">사야 할 것을 적어두면, 담을 때까지 남아 있어요.</div>`;
   box.querySelectorAll('[data-shcheck]').forEach(b=>b.onclick=()=>toggleShop(b.dataset.shcheck));
   box.querySelectorAll('[data-shdel]').forEach(b=>b.onclick=()=>delShop(b.dataset.shdel));
+  box.querySelectorAll('[data-shedit]').forEach(el=>el.onclick=()=>{const it=shopItems().find(x=>x.id===el.dataset.shedit);if(!it)return;inlineEditStart(el,it.text,v=>{if(v&&v!==it.text){it.text=v;it.updatedAt=Date.now();scheduleSave();}renderShopping();});});
   const clr=$('#shopClear');
   if(clr){const bought=list.filter(x=>x.done).length;if(bought){clr.textContent=`담은 것 ${bought} 비우기`;clr.classList.remove('hidden');}else clr.classList.add('hidden');}
 }
@@ -1886,11 +1899,11 @@ function renderSearch(){
   body.innerHTML=rows.slice(0,300).map(r=>{
     const rt=stripRich(r.text);
     const snip=q?highlight(snippet(rt,q),q):esc(snip0(rt));
-    const nav=r.week?`data-week="${r.week}"`:`data-day="${r.date}"${r.id?` data-entry="${r.id}"`:''}`;
+    const nav=r.noteId?`data-note="${r.noteId}"`:(r.week?`data-week="${r.week}"`:`data-day="${r.date}"${r.id?` data-entry="${r.id}"`:''}`);
     const staleMark=r.stale?' · <span style="color:var(--warn)">이 정리본은 원본 변경 전 내용</span>':'';
     return `<div class="res" ${nav}><div class="meta">${korShort(r.date)} · <b>${esc(r.src)}</b>${staleMark}</div><div class="pre">${snip}</div></div>`;
   }).join('');
-  $$('#searchBody .res').forEach(b=>b.onclick=()=>{if(b.dataset.week){weekRef=b.dataset.week;switchView('weekly');}else openDay(b.dataset.day,b.dataset.entry);});
+  $$('#searchBody .res').forEach(b=>b.onclick=()=>{if(b.dataset.note){viewNote(b.dataset.note);}else if(b.dataset.week){weekRef=b.dataset.week;switchView('weekly');}else openDay(b.dataset.day,b.dataset.entry);});
 }
 function buildSearchRows(q){
   const rows=[], tagActive=searchTags.size>0;
@@ -1905,6 +1918,8 @@ function buildSearchRows(q){
     for(const mon in state.weekly){const w=state.weekly[mon];const text=[(w.did||[]).join(' '),(w.worried||[]).join(' '),(w.decisions||[]).join(' '),w.mood||'',(w.carryOver||[]).join(' '),w.text||''].join(' ').trim();
       if(text&&(!q||text.toLowerCase().includes(q)))rows.push({date:mon,src:'주간회고',text,order:'zzz',stale:!!w.stale,week:mon,type:'weekly'});}
     for(const date in (state.comments||{})){const ctext=commentsOf(date).map(c=>c.text).join(' ').trim();if(ctext&&(!q||ctext.toLowerCase().includes(q)))rows.push({date,src:'그때의 나에게',text:ctext,order:'zy',type:'comment'});}
+    activeNotes().forEach(n=>{const text=((n.title||'')+' '+(n.body||'')).trim();if(text&&(!q||text.toLowerCase().includes(q))){const d=new Date(n.updatedAt||n.createdAt||Date.now());const ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;rows.push({date:ymd,src:'서랍',text,order:'zx',type:'note',noteId:n.id});}});
+    for(const date in (state.todos||{})){(state.todos[date]||[]).forEach(t=>{const text=t.text||'';if(text&&(!q||text.toLowerCase().includes(q)))rows.push({date,src:t.done?'할 일 ✓':'할 일',text,order:'zw',type:'todo'});});}
   }
   const from=($('#sfFrom')&&$('#sfFrom').value)||'',to=($('#sfTo')&&$('#sfTo').value)||'',typ=($('#sfType')&&$('#sfType').value)||'';
   let out=rows;
@@ -3032,7 +3047,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.84';
+const APP_VER='4.85';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
