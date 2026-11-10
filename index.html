@@ -1001,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.86 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.88 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1105,7 +1105,7 @@ input.field-in,select.field-in{width:100%}
   <div class="dbody">
     <input id="noteTitle" class="note-title-in" placeholder="제목 (선택)" autocomplete="off">
     <div class="ed-fmt" id="noteFmtBar"><span class="ed-fmt-hint">글자 드래그 후 강조</span><button type="button" class="ed-fmt-b" data-nw="**">굵게</button><button type="button" class="ed-fmt-u" data-nw="++">밑줄</button><button type="button" class="ed-fmt-sw" data-ncol="red" style="background:var(--red)" aria-label="빨강"></button><button type="button" class="ed-fmt-sw" data-ncol="blue" style="background:var(--accent-2)" aria-label="파랑"></button><button type="button" class="ed-fmt-sw" data-ncol="green" style="background:var(--accent)" aria-label="초록"></button><button type="button" class="ed-fmt-sw" data-ncol="gold" style="background:var(--gold)" aria-label="금색"></button><button type="button" class="ed-fmt-x" data-nx>지우기</button></div>
-    <div class="field"><textarea id="noteBody" style="min-height:260px" placeholder="여기에 쓰거나 붙여넣기…   (## 소제목 · - 목록 · **굵게** · $$수식$$ 가능)"></textarea></div>
+    <div class="field"><textarea id="noteBody" style="min-height:260px" placeholder="여기에 쓰거나 붙여넣기…   (## 소제목 · - 목록 · **굵게** · 수식 $$식$$ 또는 인라인 \(식\))"></textarea></div>
     <div class="field"><label>태그</label><div class="tagpick" id="noteTagPick"></div></div>
   </div>
   <footer class="dfoot"><button class="btn danger" id="noteDelete"><svg class="icon sm"><use href="#i-trash"/></svg>삭제</button>
@@ -2667,6 +2667,13 @@ function compressImage(file,max=1600,q=0.72){return new Promise((res,rej)=>{
   img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('image'))};img.src=url;})}
 /* ---------- entry edit ---------- */
 let editingEntry=null, editTags=[], editPhotos=[], editSnapshot='', editOriginalDate='';
+function syncEditCaptions(){$$('#edPhotos [data-cap]').forEach(inp=>{const p=editPhotos.find(x=>x.id===inp.dataset.cap);if(p)p.caption=inp.value;});}
+function renderEditPhotos(){
+  const box=$('#edPhotos');if(!box)return;
+  box.innerHTML=editPhotos.length?editPhotos.map(p=>`<div class="cell"><img class="thumb" data-photo="${p.id}" style="width:118px;height:118px"><input class="caption-in" data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="메모"><button class="btn ghost sm" data-delphoto="${p.id}" type="button" style="margin-top:4px;color:var(--red)">사진 삭제</button></div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:2px">사진이 없어요. 아래 ‘사진 추가’로 넣어보세요.</div>';
+  box.querySelectorAll('[data-delphoto]').forEach(b=>b.onclick=()=>{syncEditCaptions();editPhotos=editPhotos.filter(p=>p.id!==b.dataset.delphoto);renderEditPhotos();});
+  hydratePhotos(box);
+}
 function openEntry(id){
   const e=findEntry(id);if(!e)return;editingEntry=id;editTags=[...(e.tags||[])];editPhotos=(e.photos||[]).map(p=>({...p}));editSnapshot=contentSig(e);editOriginalDate=e.date;
   $('#entryTitle').textContent=({line:'한 줄 기록',conversation:'대화 기록',makeup:'보완 기록',photo:'사진 기록'}[e.type])||'기록';
@@ -2674,8 +2681,8 @@ function openEntry(id){
   let html=`<div class="field"><label>${e.type==='photo'?'메모':'원문'}</label><textarea id="edOriginal" style="min-height:${e.type==='conversation'?'160px':'90px'}">${esc(e.original)}</textarea></div>`;
   html+=`<div class="field"><label>날짜</label><input type="date" id="edDate" value="${e.date}"></div>`;
   html+=`<div class="field"><label>시각 (선택)</label><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><input type="time" id="edTime" value="${e.time||''}" ${e.time?'':'disabled'} style="width:auto;min-width:130px"><label style="display:inline-flex;align-items:center;gap:6px;font-weight:400;color:var(--muted);font-size:13px"><input type="checkbox" id="edTimeUnknown" ${e.time?'':'checked'}> 시간 미상</label></div></div>`;
-  if(e.type==='photo'&&editPhotos.length){
-    html+=`<div class="field"><label>사진별 한 줄 메모</label><div class="ph-edit" id="edPhotos">${editPhotos.map(p=>`<div class="cell"><img class="thumb" data-photo="${p.id}" style="width:118px;height:118px"><input class="caption-in" data-cap="${p.id}" value="${esc(p.caption||'')}" placeholder="메모"><button class="btn ghost sm" data-delphoto="${p.id}" style="margin-top:4px;color:var(--red)">사진 삭제</button></div>`).join('')}</div></div>`;
+  if(e.type==='photo'){
+    html+=`<div class="field"><label>사진</label><div class="ph-edit" id="edPhotos"></div><button class="btn ghost sm" id="edAddPhoto" type="button" style="margin-top:8px"><svg class="icon sm"><use href="#i-image"/></svg>사진 추가</button><input type="file" id="edPhotoInput" accept="image/*" multiple class="hidden"></div>`;
   }
   if(e.type==='conversation'){
     html+=`<div class="field"><label>대화 제목</label><input id="edTitle" value="${esc((e.analysis&&e.analysis.title)||'')}" placeholder="예: 쇼츠 채널 정리"></div>`;
@@ -2697,8 +2704,13 @@ function openEntry(id){
     fmtBar.querySelectorAll('[data-edx]').forEach(b=>b.addEventListener('click',()=>{if(!edFocusTa){toast('지울 칸을 눌러 범위를 먼저 선택하세요');return;}stripField(edFocusTa);}));}
   const _tu=$('#edTimeUnknown'), _ti=$('#edTime');
   if(_tu&&_ti)_tu.onchange=()=>{_ti.disabled=_tu.checked;if(_tu.checked)_ti.value='';else if(!_ti.value)_ti.value=hm(new Date());};
-  // photo delete (removed on save; cancel keeps them)
-  $$('#entryBody [data-delphoto]').forEach(b=>b.onclick=()=>{editPhotos=editPhotos.filter(p=>p.id!==b.dataset.delphoto);b.closest('.cell').remove();});
+  // 사진: 목록 그리기 + 추가/삭제 (삭제·추가는 저장 시 실제 반영, 취소 시 원래대로)
+  if(e.type==='photo'){
+    renderEditPhotos();
+    const _ab=$('#edAddPhoto'), _ai=$('#edPhotoInput');
+    if(_ab&&_ai){_ab.onclick=()=>_ai.click();
+      _ai.onchange=async ev=>{const files=[...ev.target.files];ev.target.value='';if(!files.length)return;toast('사진 처리 중…');syncEditCaptions();for(const f of files){try{const url=await compressImage(f);const pid=uid();await putPhoto(pid,url);editPhotos.push({id:pid,caption:''});}catch(err){console.error(err);}}renderEditPhotos();};}
+  }
   const rean=$('#edReanalyze');if(rean)rean.onclick=()=>{persistEntryEdits(e);if(contentSig(e)!==editSnapshot){markDayStale(editOriginalDate);markDayStale(e.date);}scheduleSave();closeModal('#entryModal');analyzeEntry(e.id);};
   $('#entryDelete').classList.remove('hidden');
   $('#entryDelete').onclick=()=>deleteEntry(e.id);
@@ -2965,7 +2977,7 @@ function zipRead(u8){
     const method=rd16(off+10), csize=rd32(off+20), namelen=rd16(off+28), extralen=rd16(off+30), commentlen=rd16(off+32), lho=rd32(off+42);
     const name=new TextDecoder().decode(u8.subarray(off+46,off+46+namelen));
     const ldata=lho+30+rd16(lho+26)+rd16(lho+28);
-    if(method!==0)throw new Error('압축된 ZIP은 지원하지 않습니다.');
+    if(method!==0)throw new Error('이 ZIP은 앱에서 만든 백업이 아니에요. 압축을 풀었다가 다시 묶으면 복원할 수 없어요 — 받은 백업 ZIP 파일을 그대로(열거나 재압축하지 말고) 올려주세요.');
     out[name]=u8.subarray(ldata,ldata+csize);
     off+=46+namelen+extralen+commentlen;
   }
@@ -3047,7 +3059,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.86';
+const APP_VER='4.88';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
