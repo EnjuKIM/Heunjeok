@@ -856,7 +856,7 @@ input.field-in,select.field-in{width:100%}
     <div class="todo-add"><input id="goodInput" placeholder="＋ 좋았던 일·고마웠던 것 한 줄" autocomplete="off" enterkeyhint="done"></div>
   </section>
   <section id="shopSection">
-    <div class="section-label todo-head"><button class="todo-toggle" id="shopToggle" type="button"><svg class="icon sm todo-chev"><use href="#i-chev"/></svg>쇼핑 리스트<span class="todo-count" id="shopCount"></span></button><button class="todo-carry hidden" id="shopClear" type="button"></button></div>
+    <div class="section-label todo-head"><button class="todo-toggle" id="shopToggle" type="button"><svg class="icon sm todo-chev"><use href="#i-chev"/></svg>쇼핑 리스트<span class="todo-count" id="shopCount"></span></button></div>
     <div class="todo-list" id="shopList"></div>
     <div class="todo-add"><input id="shopInput" placeholder="＋ 살 것 추가" autocomplete="off" enterkeyhint="done"></div>
   </section>
@@ -1001,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.90 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.92 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1206,7 +1206,7 @@ function defaultDoc(){return {
   routineLog:{},
   ddays:[],
   comments:{},
-  shopping:[],
+  shopping:{},
   tomb:{},
   lastDeleteAt:0,
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
@@ -1230,7 +1230,7 @@ function docStamp(d){
   let s=0;const es=(d&&d.entries)||[];
   for(const e of es){if(e.updatedAt>s)s=e.updatedAt;if(e.deletedAt>s)s=e.deletedAt;if(e.createdAt>s)s=e.createdAt;}
   const td=(d&&d.todos)||{};for(const k in td){for(const t of (td[k]||[])){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}}
-  const shp=(d&&d.shopping)||[];for(const t of shp){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}
+  const shd=(d&&d.shopping)||{};for(const k in shd){for(const t of (shd[k]||[])){if(t.updatedAt>s)s=t.updatedAt;if(t.createdAt>s)s=t.createdAt;}}
   const sm=(d&&d.summaries)||{};for(const k in sm){if(sm[k]&&sm[k].generatedAt>s)s=sm[k].generatedAt;}
   if(d&&d.lastDeleteAt>s)s=d.lastDeleteAt;
   return s;
@@ -1294,7 +1294,7 @@ function migrate(){let ch=false;
   if(!state.routineLog){state.routineLog={};ch=true;}
   if(!state.ddays){state.ddays=[];ch=true;}
   if(!state.comments){state.comments={};ch=true;}
-  if(!state.shopping){state.shopping=[];ch=true;}
+  if(!state.shopping||Array.isArray(state.shopping)){const _os=Array.isArray(state.shopping)?state.shopping:[];state.shopping={};if(_os.length)state.shopping[nowYmd()]=_os;ch=true;}
   if(!state.tomb){state.tomb={};ch=true;}
   if(!state.settings.routine){state.settings.routine=defaultDoc().settings.routine;ch=true;}
   if(!((state.settings.routineVer||0)>=2)){state.settings.routine=defaultDoc().settings.routine;state.settings.marks=defaultDoc().settings.marks;state.settings.routineVer=2;ch=true;}
@@ -1480,30 +1480,28 @@ function renderGood(){
 }
 $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
-/* ---------- 쇼핑 리스트 (상시 목록 — 날짜에 묶이지 않고, 살 때까지 남아 있다가 담으면 비움) ---------- */
-function shopItems(){return state.shopping||(state.shopping=[]);}
-function addShop(text){const t=(text||'').trim();if(!t)return;shopItems().push({id:uid(),text:t,done:false,createdAt:Date.now(),updatedAt:Date.now()});scheduleSave();renderShopping();}
-function toggleShop(id){const it=shopItems().find(x=>x.id===id);if(!it)return;it.done=!it.done;it.updatedAt=Date.now();scheduleSave();renderShopping();}
-function delShop(id){tombSet('shop',id);state.shopping=shopItems().filter(x=>x.id!==id);state.lastDeleteAt=Date.now();scheduleSave();renderShopping();}
-function clearBoughtShop(){const bought=shopItems().filter(x=>x.done);if(bought.length){bought.forEach(x=>tombSet('shop',x.id));state.shopping=shopItems().filter(x=>!x.done);state.lastDeleteAt=Date.now();scheduleSave();renderShopping();}}
+/* ---------- 쇼핑 리스트 (할 일처럼 날짜별 — 그날 살 것 적고, 사면 체크해 그대로 두며, 다음날은 새 목록) ---------- */
+function shopOf(date){return (state.shopping&&state.shopping[date])||[];}
+function saveShopFor(date,arr){if(!state.shopping)state.shopping={};if(arr.length)state.shopping[date]=arr;else delete state.shopping[date];scheduleSave();}
+function addShop(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();const arr=shopOf(date).slice();arr.push({id:uid(),text:t,done:false,createdAt:Date.now(),updatedAt:Date.now()});saveShopFor(date,arr);renderShopping();}
+function toggleShop(id){const date=nowYmd();const arr=shopOf(date);const it=arr.find(x=>x.id===id);if(!it)return;it.done=!it.done;it.updatedAt=Date.now();saveShopFor(date,arr);renderShopping();}
+function delShop(id){const date=nowYmd();state.lastDeleteAt=Date.now();saveShopFor(date,shopOf(date).filter(x=>x.id!==id));renderShopping();}
 function renderShopping(){
   const sec=$('#shopSection');if(!sec)return;
   sec.classList.toggle('collapsed',!!state.settings.shopCollapsed);
-  const list=shopItems().slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
+  const date=nowYmd();
+  const list=shopOf(date).slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
   const un=list.filter(x=>!x.done).length;
   const cnt=$('#shopCount');if(cnt)cnt.textContent=un?String(un):(list.length?'✓':'');
   const box=$('#shopList');
   box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-shop="${t.id}"><button class="todo-check" data-shcheck="${t.id}" aria-label="담음">${icon('i-check')}</button><div class="todo-text pre" data-shedit="${t.id}" title="눌러서 수정">${esc(t.text)}</div><button class="todo-del" data-shdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
-    :`<div class="todo-empty">사야 할 것을 적어두면, 담을 때까지 남아 있어요.</div>`;
+    :`<div class="todo-empty">오늘 살 것을 적어보세요.</div>`;
   box.querySelectorAll('[data-shcheck]').forEach(b=>b.onclick=()=>toggleShop(b.dataset.shcheck));
   box.querySelectorAll('[data-shdel]').forEach(b=>b.onclick=()=>delShop(b.dataset.shdel));
-  box.querySelectorAll('[data-shedit]').forEach(el=>el.onclick=()=>{const it=shopItems().find(x=>x.id===el.dataset.shedit);if(!it)return;inlineEditStart(el,it.text,v=>{if(v&&v!==it.text){it.text=v;it.updatedAt=Date.now();scheduleSave();}renderShopping();});});
-  const clr=$('#shopClear');
-  if(clr){const bought=list.filter(x=>x.done).length;if(bought){clr.textContent=`담은 것 ${bought} 비우기`;clr.classList.remove('hidden');}else clr.classList.add('hidden');}
+  box.querySelectorAll('[data-shedit]').forEach(el=>el.onclick=()=>{const it=shopOf(date).find(x=>x.id===el.dataset.shedit);if(!it)return;inlineEditStart(el,it.text,v=>{if(v&&v!==it.text){it.text=v;it.updatedAt=Date.now();saveShopFor(date,shopOf(date));}renderShopping();});});
 }
 $('#shopInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addShop(e.target.value);e.target.value='';}});
 $('#shopToggle').onclick=()=>{state.settings.shopCollapsed=!state.settings.shopCollapsed;scheduleSave();renderShopping();};
-$('#shopClear').onclick=clearBoughtShop;
 /* ---------- 그날의 흔적 (5년 일기 — 오늘 화면에 연도별로 쌓아 보기) ---------- */
 function otdClip(s,n){s=stripRich(String(s||'')).replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'…':s;}
 function otdFirst(v,n){for(const x of summaryArray(v)){const t=otdClip(x,n);if(t)return t;}return '';}
@@ -2825,6 +2823,8 @@ function openDay(date,focusId){
   if(_tds.length)html+=`<div class="day-todos"><div class="section-label">할 일</div><div class="todo-list">${_tds.map(t=>`<div class="todo-item${t.done?' done':''}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div></div><div style="height:14px"></div>`;
   const _gds=goodOf(date);
   if(_gds.length)html+=`<div class="day-todos"><div class="section-label">좋았던 것</div><div class="todo-list">${_gds.map(g=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre">${renderRich(g)}</div></div>`).join('')}</div></div><div style="height:14px"></div>`;
+  const _shs=shopOf(date);
+  if(_shs.length)html+=`<div class="day-todos"><div class="section-label">쇼핑</div><div class="todo-list">${_shs.map(t=>`<div class="todo-item${t.done?' done':''}"><button class="todo-check" tabindex="-1" aria-hidden="true">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div></div>`).join('')}</div></div><div style="height:14px"></div>`;
   if(es.length){html+=`<div class="feed">${[...es].reverse().map(e=>entryHtml(e,{showTags:true})).join('')}</div>`;}
   else html+=`<div class="empty">${icon('i-note')}<b>이 날의 기록이 없어요.</b><small>아래 ‘보완’으로 기억을 붙이거나, 한 줄 남겨보세요.</small></div>`;
   html+=`<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
@@ -2943,6 +2943,8 @@ function buildMarkdown(from,to){
     if(_tds.length){md+='**할 일**\n';_tds.forEach(t=>md+=`- ${t.done?'[x]':'[ ]'} ${t.text}\n`);md+='\n';}
     const _gds=goodOf(date);
     if(_gds.length){md+='**좋았던 것**\n';_gds.forEach(g=>md+=`- ${g}\n`);md+='\n';}
+    const _shs=shopOf(date);
+    if(_shs.length){md+='**쇼핑**\n';_shs.forEach(t=>md+=`- ${t.done?'[x]':'[ ]'} ${t.text}\n`);md+='\n';}
     md+='**기록**\n\n';
     entriesOf(date).forEach(e=>{
       const tm=e.time||'시간미상';
@@ -3074,7 +3076,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.90';
+const APP_VER='4.92';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
@@ -3257,7 +3259,8 @@ function mergeRoutineLog(a,b){const out={};const ks=new Set([...Object.keys(a||{
 function mergeGood(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const u=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];if(u.length)out[k]=u;});return out;}
 function mergeImportant(a,b){return Object.assign({},a||{},b||{});}
 function mergeById(a,b){const m=new Map();(a||[]).forEach(x=>{if(x&&x.id)m.set(x.id,x);});(b||[]).forEach(x=>{if(x&&x.id&&!m.has(x.id))m.set(x.id,x);});return [...m.values()];}
-function mergeShopping(a,b){const m=new Map();const put=arr=>{(arr||[]).forEach(x=>{if(!x||!x.id)return;const p=m.get(x.id);if(!p||(x.updatedAt||x.createdAt||0)>(p.updatedAt||p.createdAt||0))m.set(x.id,x);});};put(a);put(b);return [...m.values()].sort((x,y)=>(x.createdAt||0)-(y.createdAt||0));}
+function normShop(s){if(Array.isArray(s))return s.length?{[nowYmd()]:s}:{};return s||{};}
+function mergeShopDays(a,b){a=normShop(a);b=normShop(b);const out={};const ks=new Set([...Object.keys(a),...Object.keys(b)]);ks.forEach(k=>{const x=a[k],y=b[k];out[k]=(x&&y)?(_todoMax(y)>_todoMax(x)?y:x):(x||y);});return out;}
 function mergeComments(a,b){const out={};const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const m=new Map();(((a||{})[k])||[]).forEach(c=>{if(c&&c.id)m.set(c.id,c);});(((b||{})[k])||[]).forEach(c=>{if(c&&c.id&&!m.has(c.id))m.set(c.id,c);});const v=[...m.values()].sort((x,y)=>(x.at||0)-(y.at||0));if(v.length)out[k]=v;});return out;}
 function mergeTomb(a,b){const out={};const cut=Date.now()-365*86400000;const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);ks.forEach(k=>{const t=Math.max((a||{})[k]||0,(b||{})[k]||0);if(t>=cut)out[k]=t;});return out;}
 function mergeDocs(a,b){
@@ -3275,7 +3278,7 @@ function mergeDocs(a,b){
   out.ddays=mergeById(a.ddays,b.ddays).filter(x=>!(x&&out.tomb['dday:'+x.id]));
   out.comments=mergeComments(a.comments,b.comments);
   for(const k in out.comments){out.comments[k]=out.comments[k].filter(c=>!(c&&out.tomb['cmt:'+c.id]));if(!out.comments[k].length)delete out.comments[k];}
-  out.shopping=mergeShopping(a.shopping,b.shopping).filter(x=>!(x&&out.tomb['shop:'+x.id]));
+  out.shopping=mergeShopDays(a.shopping,b.shopping);
   out.decisionMeta=Object.assign({},b.decisionMeta||{},a.decisionMeta||{});
   const sa=(a.settings&&a.settings.updatedAt)||0,sb=(b.settings&&b.settings.updatedAt)||0;
   const aEmpty=!((a.entries||[]).some(e=>!e.deletedAt))&&!Object.keys(a.summaries||{}).length;
