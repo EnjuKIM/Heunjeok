@@ -665,7 +665,7 @@ input.field-in,select.field-in{width:100%}
 .yest-note{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 22px;padding:12px 15px;border-radius:12px;background:var(--paper2);border:1px solid var(--line2);font-size:13px;color:var(--soft);animation:softIn .4s ease}
 .yest-note .btn{margin-left:auto}
 /* conversation title in timeline */
-.etitle{font-family:'Gowun Batang','Batang',serif;font-size:16px;color:var(--ink);margin-bottom:4px}
+.etitle{font-family:'Gowun Batang','Batang',serif;font-size:18px;font-weight:700;color:var(--ink);margin-bottom:4px}
 /* 대화 정리 접기 — 제목만 남기기 */
 .efold-head{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:none;border:none;padding:0;margin:0 0 4px;cursor:pointer;color:inherit}
 .efold-head .etitle{margin-bottom:0;flex:1 1 auto;min-width:0}
@@ -1001,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.94 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.95 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -3076,7 +3076,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.94';
+const APP_VER='4.95';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
