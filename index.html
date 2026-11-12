@@ -1001,7 +1001,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.93 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.94 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1211,7 +1211,7 @@ function defaultDoc(){return {
   lastDeleteAt:0,
   settings:{apiKey:'',model:'',theme:'auto',lastBackupAt:0,updatedAt:0,
     tags:['운동','공부','일','소설','유튜브','건강','돈','가족','기분','구매','결정'],
-    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,shopCollapsed:false,notesCompact:false,entryCollapsed:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
+    showTimelineTags:false,voiceAutoSave:false,autoYesterday:false,memoView:false,showTodos:true,todosCollapsed:false,goodCollapsed:false,shopCollapsed:false,notesCompact:false,entryCollapsed:[],convOpen:[],todoCollapsedDates:[],decCollapsedDates:[],tlCollapsedDates:[],
     routineVer:3,
     routine:[{id:'r1',start:'04:30',end:'06:30',label:'봉은사 새벽기도',color:'sage',icon:'🏛️'},{id:'r2',start:'07:00',end:'16:00',label:'밥벌이',color:'blue',icon:'💼'},{id:'r3',start:'17:00',end:'21:00',label:'공부',color:'peach',icon:'📖',note:'(4시간)'},{id:'r4',start:'22:00',end:'04:00',label:'취침',color:'purple',icon:'🌙',note:'충분한 수면으로 내일을 준비합니다',fixed:true}],
     marks:[{id:'m1',time:'04:00',label:'기상',icon:'🌅',side:'out',color:''},{id:'m2',time:'14:00',label:'이후 금식',icon:'🚫',side:'in',color:'blue'}],
@@ -1320,11 +1320,11 @@ const TAG_HINTS={운동:['달리기','런닝','헬스','운동','스쿼트','조
  결정:['결정','하기로','안 하기로','그만두기로','시작하기로','제출','중단']};
 function suggestTags(text){const t=String(text||'');const out=[];for(const[tag,words]of Object.entries(TAG_HINTS)){if(!state.settings.tags.includes(tag))continue;if(words.some(w=>t.includes(w)))out.push(tag)}return out}
 /* ---------- rendering: entry ---------- */
-function isEntryFolded(id){return (state.settings.entryCollapsed||[]).includes(id);}
+function isEntryFolded(id){return !(state.settings.convOpen||[]).includes(id);}
 function toggleEntryFold(id,entryEl){
-  const arr=state.settings.entryCollapsed=state.settings.entryCollapsed||[];
+  const arr=state.settings.convOpen=state.settings.convOpen||[];
   const i=arr.indexOf(id);let folded;
-  if(i>=0){arr.splice(i,1);folded=false;}else{arr.push(id);folded=true;}
+  if(i>=0){arr.splice(i,1);folded=true;}else{arr.push(id);folded=false;}
   scheduleSave();
   if(entryEl){entryEl.classList.toggle('folded',folded);const h=entryEl.querySelector('[data-efold]');if(h)h.setAttribute('aria-expanded',folded?'false':'true');}
 }
@@ -3076,7 +3076,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.93';
+const APP_VER='4.94';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
