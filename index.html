@@ -173,6 +173,18 @@ h1,h2,h3{font-family:'Gowun Batang','Batang',serif;font-weight:700}
 .todo-item.done .todo-text{color:var(--muted);text-decoration:line-through}
 .todo-del{flex:none;opacity:0;color:var(--muted);width:24px;height:24px;border-radius:6px;display:grid;place-items:center}
 .todo-item:hover .todo-del{opacity:1}
+.todo-mig{flex:none;align-self:center;background:none;border:none;color:var(--accent-2);font-weight:700;font-size:15px;line-height:1;padding:2px 6px;opacity:.55;cursor:pointer}
+.todo-item:hover .todo-mig{opacity:1}
+.todo-mig:hover{color:var(--accent)}
+.todo-item.migrated{opacity:.55}
+.todo-item.migrated .todo-text{color:var(--muted)}
+.mig-mark{flex:none;width:20px;height:20px;margin-top:1px;display:grid;place-items:center;color:var(--accent-2);font-weight:700;font-size:15px}
+.todo-miss{flex:none;align-self:center;background:none;border:none;color:var(--muted);font-weight:700;font-size:16px;line-height:1;padding:2px 6px;opacity:.55;cursor:pointer}
+.todo-item:hover .todo-miss{opacity:1}
+.todo-miss:hover{color:var(--soft)}
+.todo-item.missed{opacity:.5}
+.todo-item.missed .todo-text{color:var(--muted)}
+.miss-mark{flex:none;width:20px;height:20px;margin-top:1px;display:grid;place-items:center;color:var(--muted);font-weight:700;font-size:16px}
 .todo-del:hover{background:var(--paper);color:var(--red)}
 .todo-add{margin-top:4px}
 .todo-add input{width:100%;border:none;border-bottom:1px dashed var(--line);background:none;padding:9px 4px;font-size:14px;color:var(--ink)}
@@ -1001,7 +1013,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.95 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.97 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1405,6 +1417,31 @@ function saveTodosFor(date,arr){if(!state.todos)state.todos={};if(arr.length)sta
 function addTodo(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();const arr=todosOf(date).slice();arr.push({id:uid(),text:t,done:false,createdAt:Date.now()});saveTodosFor(date,arr);renderTodos();}
 function toggleTodo(id,date){date=date||nowYmd();saveTodosFor(date,todosOf(date).map(x=>x.id===id?{...x,done:!x.done,updatedAt:Date.now()}:x));afterTodoChange(date);}
 function delTodo(id,date){date=date||nowYmd();state.lastDeleteAt=Date.now();saveTodosFor(date,todosOf(date).filter(x=>x.id!==id));afterTodoChange(date);}
+function migrateTodo(id){
+  const date=nowYmd(), tmr=addDays(date,1);
+  const arr=todosOf(date); const t=arr.find(x=>x.id===id);
+  if(!t||t.done||t.migrated)return;
+  t.migrated=true; t.updatedAt=Date.now();
+  const copyId=uid();
+  const tarr=todosOf(tmr).slice(); tarr.push({id:copyId,text:t.text,done:false,createdAt:Date.now()});
+  saveTodosFor(tmr,tarr); saveTodosFor(date,arr); renderTodos();
+  showUndoToast('내일로 보냈어요',()=>{
+    const t2=todosOf(date).find(x=>x.id===id); if(t2){t2.migrated=false;t2.updatedAt=Date.now();saveTodosFor(date,todosOf(date));}
+    saveTodosFor(tmr,todosOf(tmr).filter(x=>x.id!==copyId));
+    renderTodos();
+  });
+}
+function missTodo(id){
+  const date=nowYmd();
+  const arr=todosOf(date); const t=arr.find(x=>x.id===id);
+  if(!t||t.done||t.migrated||t.missed)return;
+  t.missed=true; t.updatedAt=Date.now();
+  saveTodosFor(date,arr); renderTodos();
+  showUndoToast('오늘 못함으로 표시했어요',()=>{
+    const t2=todosOf(date).find(x=>x.id===id); if(t2){t2.missed=false;t2.updatedAt=Date.now();saveTodosFor(date,todosOf(date));}
+    renderTodos();
+  });
+}
 function afterTodoChange(date){renderTodos();if(currentView==='todos')renderAllTodos();if(dayModalDate&&dayModalDate===date&&$('#dayModal').classList.contains('open'))openDay(date);}
 /* ---------- 그때의 나에게 (과거 기록에 다는 댓글) — 원문은 절대 변경하지 않고 날짜별로 따로 저장 ---------- */
 function commentsOf(date){return (state.comments&&state.comments[date])||[];}
@@ -1421,7 +1458,7 @@ function insertAtCursor(inp,txt){try{const s=inp.selectionStart,e=inp.selectionE
 function wireEmoji(root){if(!root)return;
   root.querySelectorAll('.cmt-emoji').forEach(btn=>btn.onclick=()=>{const bar=btn.closest('.cmt-add').querySelector('.emoji-bar');if(bar)bar.classList.toggle('hidden');});
   root.querySelectorAll('.emoji-bar .emo').forEach(b=>b.onclick=()=>{const wrap=b.closest('.cmt-add');const inp=wrap&&wrap.querySelector('input');if(inp){insertAtCursor(inp,b.dataset.emo);inp.focus();}});}
-function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
+function carryTodos(){const date=nowYmd();const undone=todosOf(addDays(date,-1)).filter(x=>!x.done&&!x.migrated&&!x.missed);if(!undone.length){toast('어제 안 끝난 할 일이 없어요.');return;}
   const arr=todosOf(date).slice();const have=new Set(arr.map(x=>x.text));let n=0;
   undone.forEach(u=>{if(!have.has(u.text)){arr.push({id:uid(),text:u.text,done:false,createdAt:Date.now()});have.add(u.text);n++;}});
   state.settings.carriedDay=date;
@@ -1440,20 +1477,28 @@ function renderTodos(){
   sec.classList.remove('hidden');
   sec.classList.toggle('collapsed',!!state.settings.todosCollapsed);
   const date=nowYmd();
-  const list=todosOf(date).slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
-  const cnt=$('#todoCount');if(cnt){const un=list.filter(x=>!x.done).length;cnt.textContent=un?String(un):(list.length?'✓':'');}
+  const _trank=t=>(t.migrated||t.missed)?2:(t.done?1:0);
+  const list=todosOf(date).slice().sort((a,b)=>(_trank(a)-_trank(b))||((a.createdAt||0)-(b.createdAt||0)));
+  const cnt=$('#todoCount');if(cnt){const un=list.filter(x=>!x.done&&!x.migrated&&!x.missed).length;cnt.textContent=un?String(un):(list.length?'✓':'');}
   const box=$('#todoList');
-  box.innerHTML=list.length?list.map(t=>`<div class="todo-item${t.done?' done':''}" data-todo="${t.id}"><button class="todo-check" data-tcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre" data-tedit="${t.id}" title="눌러서 수정">${esc(t.text)}</div><button class="todo-del" data-tdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')
+  box.innerHTML=list.length?list.map(t=>{
+    const mark=t.missed?`<span class="miss-mark" aria-hidden="true" title="못함">–</span>`:t.migrated?`<span class="mig-mark" aria-hidden="true" title="내일로 보냄">→</span>`:`<button class="todo-check" data-tcheck="${t.id}" aria-label="완료">${icon('i-check')}</button>`;
+    const textAttr=(t.migrated||t.missed)?'':` data-tedit="${t.id}" title="눌러서 수정"`;
+    const actions=(!t.done&&!t.migrated&&!t.missed)?`<button class="todo-mig" data-tmig="${t.id}" aria-label="내일로 보내기" title="내일로 보내기">→</button><button class="todo-miss" data-tmiss="${t.id}" aria-label="못함" title="오늘 못함">–</button>`:'';
+    return `<div class="todo-item${t.done?' done':''}${t.migrated?' migrated':''}${t.missed?' missed':''}" data-todo="${t.id}">${mark}<div class="todo-text pre"${textAttr}>${esc(t.text)}</div>${actions}<button class="todo-del" data-tdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;
+  }).join('')
     :`<div class="todo-empty">아래에 오늘 할 일을 적어보세요.</div>`;
   box.querySelectorAll('[data-tcheck]').forEach(b=>b.onclick=()=>toggleTodo(b.dataset.tcheck));
   box.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>delTodo(b.dataset.tdel));
+  box.querySelectorAll('[data-tmig]').forEach(b=>b.onclick=()=>migrateTodo(b.dataset.tmig));
+  box.querySelectorAll('[data-tmiss]').forEach(b=>b.onclick=()=>missTodo(b.dataset.tmiss));
   box.querySelectorAll('[data-tedit]').forEach(el=>el.onclick=()=>{const t=todosOf(date).find(x=>x.id===el.dataset.tedit);if(!t)return;inlineEditStart(el,t.text,v=>{if(v&&v!==t.text){t.text=v;t.updatedAt=Date.now();scheduleSave();}renderTodos();});});
   const carry=$('#todoCarry');
   if(carry){
     if(state.settings.carriedDay===date){carry.classList.add('hidden');}
     else{
       const haveToday=new Set(todosOf(date).map(x=>x.text));
-      const pending=todosOf(addDays(date,-1)).filter(x=>!x.done&&!haveToday.has(x.text)).length;
+      const pending=todosOf(addDays(date,-1)).filter(x=>!x.done&&!x.migrated&&!x.missed&&!haveToday.has(x.text)).length;
       if(pending){carry.textContent=`어제 안 끝난 것 ${pending} 가져오기`;carry.classList.remove('hidden');}
       else carry.classList.add('hidden');
     }
@@ -1545,22 +1590,22 @@ function renderTodayStar(){const b=$('#todayStar');if(!b)return;const on=isImpor
 $('#todayStar').onclick=()=>{const d=nowYmd();toggleImportant(d);renderTodayStar();toast(isImportant(d)?'중요한 날로 표시했어요 ⭐':'표시를 해제했어요');};
 /* ---------- 할 일 모아보기 (all todos view) ---------- */
 let todoFilter='all';
-function todoRowHtml(t,date){return `<div class="todo-item${t.done?' done':''}" data-tdate="${date}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;}
+function todoRowHtml(t,date){const mark=t.missed?`<span class="miss-mark" aria-hidden="true" title="못함">–</span>`:t.migrated?`<span class="mig-mark" aria-hidden="true" title="내일로 보냄">→</span>`:`<button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button>`;return `<div class="todo-item${t.done?' done':''}${t.migrated?' migrated':''}${t.missed?' missed':''}" data-tdate="${date}">${mark}<div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`;}
 function toggleTodoGroup(date){const arr=state.settings.todoExpandedDates||(state.settings.todoExpandedDates=[]);const i=arr.indexOf(date);if(i>=0)arr.splice(i,1);else arr.push(date);scheduleSave();renderAllTodos();}
 function renderAllTodos(){
   const bar=$('#todoFilterBar'),body=$('#todosBody');if(!body)return;
   const all=state.todos||{};
   const dates=Object.keys(all).filter(d=>(all[d]||[]).length).sort().reverse();
   let totalUndone=0,totalDone=0;
-  dates.forEach(d=>all[d].forEach(t=>t.done?totalDone++:totalUndone++));
+  dates.forEach(d=>all[d].forEach(t=>{if(t.migrated||t.missed)return;t.done?totalDone++:totalUndone++;}));
   const expanded=new Set(state.settings.todoExpandedDates||[]);
   if(bar){bar.innerHTML=`<button class="chip ${todoFilter==='all'?'on':''}" data-tf="all">전체</button><button class="chip ${todoFilter==='undone'?'on':''}" data-tf="undone">미완료 ${totalUndone}</button>`;
     bar.querySelectorAll('[data-tf]').forEach(b=>b.onclick=()=>{todoFilter=b.dataset.tf;renderAllTodos();});}
   const groups=dates.map(date=>{
-    let items=all[date].slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
-    if(todoFilter==='undone')items=items.filter(t=>!t.done);
+    let items=all[date].slice().sort((a,b)=>(((a.migrated||a.missed)?2:(a.done?1:0))-((b.migrated||b.missed)?2:(b.done?1:0)))||((a.createdAt||0)-(b.createdAt||0)));
+    if(todoFilter==='undone')items=items.filter(t=>!t.done&&!t.migrated&&!t.missed);
     if(!items.length)return '';
-    const un=all[date].filter(t=>!t.done).length;
+    const un=all[date].filter(t=>!t.done&&!t.migrated&&!t.missed).length;
     return `<div class="todo-group${un?'':' alldone'}${expanded.has(date)?'':' collapsed'}"><div class="todo-group-head" data-tgroup="${date}"><span class="tg-left"><svg class="icon sm tg-chev"><use href="#i-chev"/></svg><span class="tg-date">${korShort(date)}</span></span><span class="tg-count">${un?un+' 남음':'다 함 ✓'}</span></div><div class="todo-list">${items.map(t=>todoRowHtml(t,date)).join('')}</div></div>`;
   }).filter(Boolean).join('');
   const summary=dates.length?`<div class="todo-summary">미완료 <b>${totalUndone}</b> · 완료 ${totalDone}</div>`:'';
@@ -2820,7 +2865,7 @@ function openDay(date,focusId){
   let html='';
   if(sum)html+=summaryCardHtml(date,sum)+'<div style="height:16px"></div>';
   const _tds=todosOf(date).slice().sort((a,b)=>((a.done?1:0)-(b.done?1:0))||((a.createdAt||0)-(b.createdAt||0)));
-  if(_tds.length)html+=`<div class="day-todos"><div class="section-label">할 일</div><div class="todo-list">${_tds.map(t=>`<div class="todo-item${t.done?' done':''}"><button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button><div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div></div><div style="height:14px"></div>`;
+  if(_tds.length)html+=`<div class="day-todos"><div class="section-label">할 일</div><div class="todo-list">${_tds.map(t=>`<div class="todo-item${t.done?' done':''}${t.migrated?' migrated':''}${t.missed?' missed':''}">${t.missed?`<span class="miss-mark" aria-hidden="true" title="못함">–</span>`:t.migrated?`<span class="mig-mark" aria-hidden="true" title="내일로 보냄">→</span>`:`<button class="todo-check" data-daytcheck="${t.id}" aria-label="완료">${icon('i-check')}</button>`}<div class="todo-text pre">${esc(t.text)}</div><button class="todo-del" data-daytdel="${t.id}" aria-label="삭제">${icon('i-x')}</button></div>`).join('')}</div></div><div style="height:14px"></div>`;
   const _gds=goodOf(date);
   if(_gds.length)html+=`<div class="day-todos"><div class="section-label">좋았던 것</div><div class="todo-list">${_gds.map(g=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre">${renderRich(g)}</div></div>`).join('')}</div></div><div style="height:14px"></div>`;
   const _shs=shopOf(date);
@@ -2940,7 +2985,7 @@ function buildMarkdown(from,to){
       if(sq.length){md+='**남겨둘 말**\n';sq.forEach(x=>md+=`- ${x}\n`);md+='\n';}
     }
     const _tds=todosOf(date);
-    if(_tds.length){md+='**할 일**\n';_tds.forEach(t=>md+=`- ${t.done?'[x]':'[ ]'} ${t.text}\n`);md+='\n';}
+    if(_tds.length){md+='**할 일**\n';_tds.forEach(t=>md+=`- ${t.done?'[x]':t.migrated?'[>]':t.missed?'[-]':'[ ]'} ${t.text}\n`);md+='\n';}
     const _gds=goodOf(date);
     if(_gds.length){md+='**좋았던 것**\n';_gds.forEach(g=>md+=`- ${g}\n`);md+='\n';}
     const _shs=shopOf(date);
@@ -3076,7 +3121,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.95';
+const APP_VER='4.97';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
