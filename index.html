@@ -1013,7 +1013,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.99 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.100 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1510,8 +1510,8 @@ $('#todoToggle').onclick=()=>{state.settings.todosCollapsed=!state.settings.todo
 /* ---------- 오늘 좋았던 것 (감사·알아차리기, 3줄이면 충분) ---------- */
 function goodOf(date){return (state.good&&state.good[date])||[];}
 function saveGoodFor(date,arr){if(!state.good)state.good={};if(arr.length)state.good[date]=arr;else delete state.good[date];scheduleSave();}
-function addGood(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();const arr=goodOf(date).slice();arr.push(t);saveGoodFor(date,arr);renderGood();}
-function delGood(i){const date=nowYmd();const arr=goodOf(date).slice();arr.splice(i,1);saveGoodFor(date,arr);renderGood();}
+function addGood(text){const t=(text||'').trim();if(!t)return;const date=nowYmd();if(state.tomb)delete state.tomb['good:'+date+'|'+t];const arr=goodOf(date).slice();arr.push(t);saveGoodFor(date,arr);renderGood();}
+function delGood(i){const date=nowYmd();const arr=goodOf(date).slice();const txt=arr[i];if(txt==null)return;tombSet('good',date+'|'+txt);state.lastDeleteAt=Date.now();arr.splice(i,1);saveGoodFor(date,arr);renderGood();showUndoToast('지웠어요',()=>{if(state.tomb)delete state.tomb['good:'+date+'|'+txt];const a=goodOf(date).slice();a.splice(Math.min(i,a.length),0,txt);saveGoodFor(date,a);renderGood();});}
 function renderGood(){
   const sec=$('#goodSection');if(!sec)return;
   sec.classList.toggle('collapsed',!!state.settings.goodCollapsed);
@@ -1521,7 +1521,7 @@ function renderGood(){
   box.innerHTML=list.length?list.map((g,i)=>`<div class="good-item"><span class="good-dot">·</span><div class="todo-text pre" data-gedit="${i}" title="눌러서 수정">${renderRich(g)}</div><button class="todo-del" data-gdel="${i}" aria-label="지우기">${icon('i-x')}</button></div>`).join('')
     :`<div class="todo-empty">오늘 좋았던 일, 고마웠던 것 — 작은 거 한 줄이면 충분해요.</div>`;
   box.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>delGood(+b.dataset.gdel));
-  box.querySelectorAll('[data-gedit]').forEach(el=>el.onclick=()=>{const i=+el.dataset.gedit;const cur=goodOf(date)[i]||'';inlineEditStart(el,cur,v=>{if(v&&v!==cur){const a=goodOf(date).slice();a[i]=v;saveGoodFor(date,a);}renderGood();});});
+  box.querySelectorAll('[data-gedit]').forEach(el=>el.onclick=()=>{const i=+el.dataset.gedit;const cur=goodOf(date)[i]||'';inlineEditStart(el,cur,v=>{if(v&&v!==cur){const a=goodOf(date).slice();a[i]=v;tombSet('good',date+'|'+cur);if(state.tomb)delete state.tomb['good:'+date+'|'+v];saveGoodFor(date,a);}renderGood();});});
 }
 $('#goodInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();addGood(e.target.value);e.target.value='';}});
 $('#goodToggle').onclick=()=>{state.settings.goodCollapsed=!state.settings.goodCollapsed;scheduleSave();renderGood();};
@@ -3121,7 +3121,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.99';
+const APP_VER='4.100';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
@@ -3317,6 +3317,7 @@ function mergeDocs(a,b){
   out.weekly=mergeByTime(a.weekly,b.weekly,'generatedAt');
   out.todos=mergeTodos(a.todos,b.todos);
   out.good=mergeGood(a.good,b.good);
+  for(const k in out.good){out.good[k]=out.good[k].filter(txt=>!out.tomb['good:'+k+'|'+txt]);if(!out.good[k].length)delete out.good[k];}
   out.important=mergeImportant(a.important,b.important);
   out.notes=mergeEntries(a.notes,b.notes);
   out.routineLog=mergeRoutineLog(a.routineLog,b.routineLog);
