@@ -687,6 +687,12 @@ input.field-in,select.field-in{width:100%}
 .efold-head:hover .etitle{color:var(--accent)}
 .efold-head:hover .efold-chev{color:var(--accent)}
 .entry.folded .efold-head{margin-bottom:0}
+/* 긴 글 접기 — 미리보기만 남기기 */
+.entry.folded .eline{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.line-more{background:none;border:none;padding:5px 0 0;margin:0;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit}
+.line-more:hover{color:var(--accent)}
+.line-more::after{content:'접기 ▴'}
+.entry.folded .line-more::after{content:'더보기 ▾'}
 /* search source tag */
 .res .meta b{color:var(--accent);font-weight:600}
 /* summary options */
@@ -1013,7 +1019,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.100 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.101 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1343,7 +1349,9 @@ function toggleEntryFold(id,entryEl){
 function entryHtml(e,opts={}){
   const showTags=opts.showTags!==undefined?opts.showTags:!!state.settings.showTimelineTags;
   const kindLabel={line:'',conversation:'대화',makeup:'보완',photo:'사진'}[e.type]||'';
-  const folded=(e.type==='conversation'&&e.analysis&&isEntryFolded(e.id));
+  const isLongText=(e.type==='line'||e.type==='makeup')&&e.original&&(e.original.length>180||(e.original.match(/\n/g)||[]).length>=4);
+  const foldable=(e.type==='conversation'&&e.analysis)||isLongText;
+  const folded=foldable&&isEntryFolded(e.id);
   let inner='';
   if(e.type==='conversation'){
     if(e.analysis){
@@ -1354,7 +1362,10 @@ function entryHtml(e,opts={}){
       <div class="needs-ai"><span style="color:var(--muted);font-size:12.5px">아직 정리하지 않은 대화</span>
       <button class="btn sm" data-analyze="${e.id}"><svg class="icon sm"><use href="#i-wand"/></svg>AI로 정리</button></div>`;}
   } else {
-    if(e.original)inner+=`<div class="etext pre">${renderRich(e.original)}</div>`;
+    if(e.original){
+      if(isLongText)inner+=`<div class="etext pre eline">${renderRich(e.original)}</div><button class="line-more" data-efold="${e.id}" aria-expanded="${folded?'false':'true'}"></button>`;
+      else inner+=`<div class="etext pre">${renderRich(e.original)}</div>`;
+    }
     if((e.photos||[]).length)inner+=`<div class="photos">${e.photos.map(p=>`<figure class="photo-print"><img data-photo="${p.id}" alt="${esc(p.caption||'')}">${p.caption?`<figcaption class="cap pre">${esc(p.caption)}</figcaption>`:''}</figure>`).join('')}</div>`;
   }
   const tags=(showTags&&(e.tags||[]).length)?`<div class="etags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:'';
@@ -3121,7 +3132,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.100';
+const APP_VER='4.101';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
