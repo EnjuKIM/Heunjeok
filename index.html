@@ -442,8 +442,15 @@ html:not(.memo) .ebody{padding-right:66px}
 .photos{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-top:13px}
 .photo-print{flex:1 1 0;min-width:0;background:var(--paper);padding:7px 7px 9px;border-radius:5px;box-shadow:0 1px 2px rgba(70,58,38,.08),0 9px 22px rgba(70,58,38,.12);border:1px solid var(--line2);max-width:210px;transition:transform .2s}
 .photo-print:hover{transform:translateY(-2px)}
-.photo-print img{display:block;width:100%;border-radius:2px;background:var(--paper2)}
+.photo-print img{display:block;width:100%;border-radius:2px;background:var(--paper2);cursor:zoom-in}
 .photo-print .cap{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;padding:0 2px}
+/* 사진 크게 보기 (라이트박스) */
+.lightbox{position:fixed;inset:0;z-index:9000;background:rgba(22,20,16,.92);display:none;overflow:auto;padding:26px 16px;cursor:zoom-out;overscroll-behavior:contain}
+.lightbox.open{display:block}
+.lb-scroll{min-height:100%;display:flex;align-items:flex-start;justify-content:center}
+.lb-scroll img{max-width:100%;height:auto;border-radius:6px;box-shadow:0 12px 44px rgba(0,0,0,.45);cursor:default}
+.lb-close{position:fixed;top:12px;right:14px;z-index:9001;width:42px;height:42px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:19px;line-height:1;cursor:pointer}
+.lb-close:hover{background:rgba(255,255,255,.3)}
 /* conversation analysis */
 .analysis{margin-top:2px;display:flex;flex-direction:column;gap:12px}
 .ablock h5{margin:0 0 4px;font:700 10.5px Pretendard;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
@@ -1019,7 +1026,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.104 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.105 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1142,6 +1149,7 @@ input.field-in,select.field-in{width:100%}
     <div class="right"><button class="btn ghost close">닫기</button><button class="btn primary" id="noteViewEdit"><svg class="icon sm"><use href="#i-edit"/></svg>수정</button></div></footer>
 </article></div>
 <div class="tagmenu" id="tagMenu" role="menu" aria-label="태그 지정"></div>
+<div class="lightbox" id="lightbox" role="dialog" aria-label="사진 크게 보기"><button class="lb-close" id="lbClose" type="button" aria-label="닫기">✕</button><div class="lb-scroll" id="lbScroll"><img id="lbImg" alt="사진"></div></div>
 <div class="toast" id="toast"></div>
 <script>
 (()=>{'use strict';
@@ -2909,6 +2917,7 @@ $('#dayMakeup').onclick=()=>{closeModal('#dayModal');openMakeup(dayModalDate)};
 $('#daySummarize').onclick=()=>{generateSummary(dayModalDate);};
 /* ---------- delegated clicks (edit/analyze in feeds) ---------- */
 document.addEventListener('click',e=>{
+  const pz=e.target.closest('.photo-print img[data-photo]');if(pz){openLightbox(pz.getAttribute('data-photo'));return;}
   const tg=e.target.closest('[data-tagmenu]');if(tg){openTagMenu(tg.dataset.tagmenu,tg);return;}
   const ed=e.target.closest('[data-edit]');if(ed){openEntry(ed.dataset.edit);return;}
   const an=e.target.closest('[data-analyze]');if(an){analyzeEntry(an.dataset.analyze);return;}
@@ -2918,6 +2927,23 @@ document.addEventListener('click',e=>{
     const en=e.target.closest('.entry');if(en&&en.dataset.entry){openEntry(en.dataset.entry);}
   }
 });
+/* 사진 크게 보기 (라이트박스) — 세로로 긴 사진은 폭에 맞춰 뜨고 스크롤로 전체를 봄 */
+function openLightbox(photoId){
+  const lb=$('#lightbox'), img=$('#lbImg'), sc=$('#lbScroll'); if(!lb||!img)return;
+  img.removeAttribute('src'); if(sc)sc.scrollTop=0;
+  getPhoto(photoId).then(url=>{if(url)img.src=url;}).catch(()=>{});
+  lb.classList.add('open'); document.body.style.overflow='hidden';
+}
+function closeLightbox(){
+  const lb=$('#lightbox'); if(!lb||!lb.classList.contains('open'))return;
+  lb.classList.remove('open'); const img=$('#lbImg'); if(img)img.removeAttribute('src');
+  if(!$$('.modal.open').length)document.body.style.overflow=''; // 모달 위에서 열렸으면 스크롤 잠금 유지
+}
+(function wireLightbox(){
+  const lb=$('#lightbox'); if(!lb)return;
+  lb.addEventListener('click',e=>{if(!e.target.closest('#lbImg'))closeLightbox();}); // 이미지 바깥(배경·닫기버튼) 클릭 시 닫기
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&lb.classList.contains('open'))closeLightbox();});
+})();
 /* quick tag menu — retro-tag entries straight from the feed */
 let tagMenuId=null,tagMenuDirty=false;
 function openTagMenu(id,btn){
@@ -3138,7 +3164,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.104';
+const APP_VER='4.105';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
