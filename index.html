@@ -693,21 +693,6 @@ input.field-in,select.field-in{width:100%}
 .line-more:hover{color:var(--accent)}
 .line-more::after{content:'접기 ▴'}
 .entry.folded .line-more::after{content:'더보기 ▾'}
-/* HTML 파일 첨부 */
-.efiles{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
-.efile{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:8px 12px;border:1px solid var(--line2);border-radius:11px;background:var(--paper2);cursor:pointer;font-family:inherit;color:var(--ink);transition:border-color .15s,background .15s}
-.efile:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--paper2))}
-.efile-ic{font-size:15px;line-height:1;flex:0 0 auto}
-.efile-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
-.efile-open{font-size:11.5px;font-weight:700;color:var(--accent);flex:0 0 auto}
-.quick-files{display:flex;flex-wrap:wrap;gap:8px}
-.quick-files:not(:empty){margin-top:10px}
-.qf-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line2);border-radius:10px;background:var(--paper2);max-width:100%}
-.qf-chip .efile-name{max-width:150px}
-.qf-del{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;background:none;color:var(--muted);cursor:pointer;padding:0;flex:0 0 auto}
-.qf-del:hover{color:var(--red)}
-.qf-del .icon{width:13px;height:13px}
-.file-frame{width:100%;height:70vh;max-height:78vh;border:0;background:#fff;display:block}
 /* search source tag */
 .res .meta b{color:var(--accent);font-weight:600}
 /* summary options */
@@ -855,20 +840,17 @@ input.field-in,select.field-in{width:100%}
     <button class="micbtn hidden" id="micBtn" aria-label="음성으로 기록"><svg class="icon sm"><use href="#i-mic"/></svg></button>
     <textarea id="quickInput" rows="1" placeholder="오늘 남기고 싶은 것…" autocomplete="off" enterkeyhint="done"></textarea>
     <div class="quick-photos" id="quickPhotoPreview"></div>
-    <div class="quick-files" id="quickFilePreview"></div>
     <div class="quick-tags" id="quickTags"></div>
     <div class="emoji-pop" id="emojiPop" role="menu" aria-label="이모티콘 선택"></div>
     <div class="fmt-pop" id="fmtPop" role="menu" aria-label="글자 서식"></div>
     <div class="quick-foot">
       <span class="quick-tip">Enter 로 남기기 · Shift+Enter 줄바꿈</span>
       <button class="emoji-btn" id="quickPhotoBtn" type="button" aria-label="사진 첨부" title="사진 (최대 2장) · 캡처는 Ctrl+V로 붙여넣어도 돼요"><svg class="icon sm"><use href="#i-image"/></svg></button>
-      <button class="emoji-btn" id="quickFileBtn" type="button" aria-label="HTML 파일 첨부" title="HTML 파일 첨부 (미리보기 가능)">📄</button>
       <button class="fmt-btn" id="fmtBtn" type="button" aria-label="글자 서식" title="굵게·기울임·색">가</button>
       <button class="emoji-btn" id="emojiBtn" type="button" aria-label="이모티콘" title="이모티콘">😊</button>
       <button class="quick-save" id="quickGo">남기기</button>
     </div>
     <input type="file" id="quickPhotoInput" accept="image/*" multiple class="hidden">
-    <input type="file" id="quickFileInput" accept=".html,.htm,text/html" class="hidden">
   </div>
   <div class="actions">
     <button class="act lead" id="btnClip"><svg class="icon sm"><use href="#i-chat"/></svg>대화 가져오기</button>
@@ -1037,7 +1019,7 @@ input.field-in,select.field-in{width:100%}
     <div class="set-row"><div class="lbl"><b>전체 초기화</b><p>모든 기록을 삭제합니다. 되돌릴 수 없습니다.</p></div>
       <div class="ctrl"><button class="btn danger" id="resetAll">초기화</button></div></div>
   </div>
-  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.103 · 로그인하면 기기 간 자동 동기화(사진·파일 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
+  <p class="help" style="text-align:center;margin-top:6px">흔적 v4.104 · 로그인하면 기기 간 자동 동기화(사진 포함) · 기록은 이 기기(및 로그인 시 클라우드)에 보관됩니다 · ZIP 백업을 정기적으로 받아두세요.</p>
 </section>
 </main>
 <!-- Conversation modal -->
@@ -1159,16 +1141,6 @@ input.field-in,select.field-in{width:100%}
   <footer class="dfoot"><button class="btn danger" id="noteViewDelete"><svg class="icon sm"><use href="#i-trash"/></svg>삭제</button>
     <div class="right"><button class="btn ghost close">닫기</button><button class="btn primary" id="noteViewEdit"><svg class="icon sm"><use href="#i-edit"/></svg>수정</button></div></footer>
 </article></div>
-<!-- HTML 파일 미리보기 (샌드박스 격리) -->
-<div class="modal" id="filePreviewModal"><article class="dialog wide">
-  <header class="dhead"><div><h3 id="filePreviewTitle">HTML 미리보기</h3><div class="sub">첨부한 페이지를 안전하게 격리해 보여줘요 · 흔적 데이터엔 접근하지 못해요</div></div>
-    <button class="iconbtn close" aria-label="닫기"><svg class="icon"><use href="#i-x"/></svg></button></header>
-  <div class="dbody" style="padding:0;overflow:hidden">
-    <iframe id="filePreviewFrame" class="file-frame" title="HTML 미리보기" sandbox="allow-scripts allow-modals" referrerpolicy="no-referrer"></iframe>
-  </div>
-  <footer class="dfoot"><button class="btn ghost" id="filePreviewDownload">원본 내려받기</button>
-    <div class="right"><button class="btn ghost close">닫기</button></div></footer>
-</article></div>
 <div class="tagmenu" id="tagMenu" role="menu" aria-label="태그 지정"></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -1195,15 +1167,14 @@ const ANALYSIS_KEYS=[['events','있었던 일'],['recall','되새긴 것'],['tho
 let toastTimer;
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
 /* ---------- storage (IndexedDB, localStorage fallback) ---------- */
-const DB_NAME='heunjeok_db', DB_VER=2, LS_KEY='heunjeok_doc_v1';
+const DB_NAME='heunjeok_db', DB_VER=2, LS_KEY='heunjeok_doc_v1'; // DB_VER은 2로 유지(일부 기기가 이미 2라 낮추면 못 읽음). files 스토어는 더는 쓰지 않음.
 let db=null, storageMode='idb';
 function openDB(){return new Promise((res,rej)=>{
   let req;try{req=indexedDB.open(DB_NAME,DB_VER)}catch(e){return rej(e)}
-  const watchdog=setTimeout(()=>{if(!db)showDbBlocked();},5000); // 5초 안에 열리지 않으면(막힘 등) 안내를 띄움 — onsuccess가 오면 사라짐
+  const watchdog=setTimeout(()=>{if(!db)showDbBlocked();},5000); // 5초 안에 열리지 않으면(막힘 등) 안내를 띄움
   req.onupgradeneeded=e=>{const d=e.target.result;
     if(!d.objectStoreNames.contains('doc'))d.createObjectStore('doc');
-    if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos');
-    if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');};
+    if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos');};
   req.onsuccess=e=>{clearTimeout(watchdog);db=e.target.result;
     try{db.onversionchange=()=>{try{db.close();}catch(_){}};}catch(_){} // 다른 탭이 업그레이드하려 하면 이 연결을 닫아 막지 않게
     hideDbBlocked();res();};
@@ -1245,38 +1216,6 @@ async function allPhotos(){
   if(storageMode==='idb'){const raw=await idbAll('photos');const out={};for(const k in raw)out[k]=raw[k].dataUrl;return out;}
   return {...(state._photos||{})};
 }
-/* HTML 파일 첨부: 저장은 사진과 같은 패턴 — 로컬은 files 스토어(또는 _files), 클라우드는 기존 photos 서브컬렉션 재사용(보안규칙 그대로) */
-const fileCache=new Map();
-const MAX_FILE_BYTES=1500000; // 1.5MB — Firestore 문서 1MB 한계 안쪽으로 동기화되게
-async function putFile(id,html){
-  if(storageMode==='idb')await idbPut('files',id,{id,html,at:Date.now()});
-  else {state._files[id]=html; scheduleSave();}
-  fileCache.set(id,html);
-  if(syncOn)cloudPhotoUpload(id,html); // 파일 본문도 사진과 같은 경로로 클라우드에 올림
-}
-async function getFile(id){
-  if(fileCache.has(id))return fileCache.get(id);
-  let html='';
-  if(storageMode==='idb'){const p=await idbGet('files',id);html=p?p.html:'';}
-  else html=(state._files&&state._files[id])||'';
-  if(!html&&syncOn){html=await cloudPhotoFetch(id);if(html){try{await putFile(id,html);}catch(e){}}} // 이 기기에 없으면 클라우드에서 받아와 캐시
-  fileCache.set(id,html);return html;
-}
-async function delFile(id){
-  if(storageMode==='idb')await idbDel('files',id);
-  else if(state._files)delete state._files[id];
-  fileCache.delete(id);
-  if(syncOn)cloudPhotoDelete(id);
-}
-async function allFiles(){
-  if(storageMode==='idb'){const raw=await idbAll('files');const out={};for(const k in raw)out[k]=raw[k].html;return out;}
-  return {...(state._files||{})};
-}
-async function uploadAllLocalFiles(){
-  if(!syncOn)return;
-  try{const all=await allFiles();for(const id in all){if(!uploadedPhotos.has(id))await cloudPhotoUpload(id,all[id]);}}
-  catch(e){console.warn('파일 일괄 업로드 실패',e);}
-}
 /* ---------- state ---------- */
 function defaultDoc(){return {
   version:3,
@@ -1302,8 +1241,7 @@ function defaultDoc(){return {
     marks:[{id:'m1',time:'04:00',label:'기상',icon:'🌅',side:'out',color:''},{id:'m2',time:'14:00',label:'이후 금식',icon:'🚫',side:'in',color:'blue'}],
     habits:[{id:'h1',label:'14시 이후 금식',icon:'🚫'},{id:'h2',label:'물 2리터 마시기',icon:'💧'},{id:'h3',label:'정제탄수 금지',icon:'🍚'}],
     planCollapsed:{tracker:1,history:1,dday:1}},
-  _photos:{},
-  _files:{}
+  _photos:{}
 };}
 let state=defaultDoc();
 let saveChain=Promise.resolve();
@@ -1327,7 +1265,7 @@ async function saveNow(){
     if(_lastSettingsHash!==null&&_sh!==_lastSettingsHash)state.settings.updatedAt=Date.now();
     _lastSettingsHash=_sh;
     if(storageMode==='idb'){
-      const {_photos,_files,...doc}=state;
+      const {_photos,...doc}=state;
       await idbPut('doc','main',doc);
       try{const safety=await idbGet('doc','safety');if(bulkOp||!safety||docStamp(doc)>=docStamp(safety))await idbPut('doc','safety',doc);}catch(e){}
     } else {
@@ -1355,7 +1293,7 @@ function entriesOf(date){return activeEntries().filter(e=>e.date===date).sort((a
 function allDatesDesc(){return [...new Set(activeEntries().map(e=>e.date))].sort().reverse()}
 function findEntry(id){return state.entries.find(e=>e.id===id)}
 function dayHasPhotos(date){return activeEntries().some(e=>e.date===date&&(e.photos||[]).length)}
-function addEntry(o){const now=Date.now();const e=Object.assign({id:uid(),date:nowYmd(),time:hm(new Date()),createdAt:now,recordedAt:new Date(now).toISOString(),updatedAt:now,type:'line',original:'',summary:null,analysis:null,tags:[],photos:[],files:[],deletedAt:null},o);state.entries.push(e);markDayStale(e.date);scheduleSave();return e}
+function addEntry(o){const now=Date.now();const e=Object.assign({id:uid(),date:nowYmd(),time:hm(new Date()),createdAt:now,recordedAt:new Date(now).toISOString(),updatedAt:now,type:'line',original:'',summary:null,analysis:null,tags:[],photos:[],deletedAt:null},o);state.entries.push(e);markDayStale(e.date);scheduleSave();return e}
 /* normalize + hash for conversation dedup */
 function normText(s){return String(s||'').toLowerCase().replace(/\s+/g,' ').replace(/[^\p{L}\p{N} ]/gu,'').trim()}
 function hashText(s){const t=normText(s);let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))>>>0;return h.toString(36)+'_'+t.length}
@@ -1364,13 +1302,12 @@ function findDupConversation(original,exceptId){const h=hashText(original);retur
 function applyAutoTags(e){const sug=suggestTags(e.original);if(sug.length)e.tags=[...new Set([...(e.tags||[]),...sug])];return e}
 /* mark a day's summary + its week as needing re-summary when source records change */
 function markDayStale(date){if(!date)return;if(state.summaries[date])state.summaries[date].stale=true;const mon=mondayOf(date);if(state.weekly[mon])state.weekly[mon].stale=true;}
-function contentSig(e){return JSON.stringify({d:e.date,t:e.time,o:e.original,a:e.analysis,p:(e.photos||[]).map(x=>x.id),f:(e.files||[]).map(x=>x.id)});}
+function contentSig(e){return JSON.stringify({d:e.date,t:e.time,o:e.original,a:e.analysis,p:(e.photos||[]).map(x=>x.id)});}
 /* migration + trash purge */
 function migrate(){let ch=false;
   (state.entries||[]).forEach(e=>{
     if(e.recordedAt===undefined){e.recordedAt=new Date(e.createdAt||Date.now()).toISOString();ch=true;}
     if(e.deletedAt===undefined){e.deletedAt=null;ch=true;}
-    if(e.files===undefined){e.files=[];ch=true;}
     if(e.type==='conversation'&&e.hash===undefined){e.hash=hashText(e.original);ch=true;}
   });
   if(!state.decisionMeta){state.decisionMeta={};ch=true;}
@@ -1396,7 +1333,7 @@ function migrate(){let ch=false;
   if(ch)scheduleSave();
 }
 function purgeTrash(){const cut=Date.now()-TRASH_DAYS*86400000;const gone=state.entries.filter(e=>e.deletedAt&&e.deletedAt<cut);
-  if(gone.length){gone.forEach(e=>{(e.photos||[]).forEach(p=>delPhoto(p.id));(e.files||[]).forEach(f=>delFile(f.id));});state.entries=state.entries.filter(e=>!(e.deletedAt&&e.deletedAt<cut));scheduleSave();}
+  if(gone.length){gone.forEach(e=>(e.photos||[]).forEach(p=>delPhoto(p.id)));state.entries=state.entries.filter(e=>!(e.deletedAt&&e.deletedAt<cut));scheduleSave();}
   if((state.notes||[]).some(n=>n.deletedAt&&n.deletedAt<cut)){state.notes=state.notes.filter(n=>!(n.deletedAt&&n.deletedAt<cut));scheduleSave();}}
 /* keyword -> suggested tag */
 const TAG_HINTS={운동:['달리기','런닝','헬스','운동','스쿼트','조깅','산책'],공부:['공부','강의','독서','시험','읽었'],
@@ -1437,7 +1374,6 @@ function entryHtml(e,opts={}){
     }
     if((e.photos||[]).length)inner+=`<div class="photos">${e.photos.map(p=>`<figure class="photo-print"><img data-photo="${p.id}" alt="${esc(p.caption||'')}">${p.caption?`<figcaption class="cap pre">${esc(p.caption)}</figcaption>`:''}</figure>`).join('')}</div>`;
   }
-  if((e.files||[]).length)inner+=`<div class="efiles">${e.files.map(f=>`<button class="efile" type="button" data-filepreview="${f.id}" data-fname="${esc(f.name||'')}"><span class="efile-ic">📄</span><span class="efile-name">${esc(f.name||'HTML')}</span><span class="efile-open">열기</span></button>`).join('')}</div>`;
   const tags=(showTags&&(e.tags||[]).length)?`<div class="etags">${e.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:'';
   const added=e.id===justAddedId?' just-added':'';
   const timeLabel=e.time?esc(e.time):'미상';
@@ -2251,14 +2187,13 @@ function renderSettings(){
 }
 async function renderUsage(){
   const ut=$('#usageText'), ub=$('#usageBar');if(!ut)return;
-  const {_photos,_files,...doc}=state;
+  const {_photos,...doc}=state;
   let textBytes=0;try{textBytes=new Blob([JSON.stringify(doc)]).size;}catch(e){textBytes=JSON.stringify(doc).length;}
   let photoBytes=0;try{const ph=await allPhotos();for(const id in ph)photoBytes+=Math.floor((ph[id]||'').length*0.75);}catch(e){}
-  let fileBytes=0;try{const fl=await allFiles();for(const id in fl)fileBytes+=new Blob([fl[id]||'']).size;}catch(e){}
   const fmt=b=>b>1048576?(b/1048576).toFixed(1)+'MB':b>1024?(b/1024).toFixed(0)+'KB':b+'B';
-  ut.textContent=`텍스트 ${fmt(textBytes)} · 사진 ${fmt(photoBytes)}${fileBytes?` · 파일 ${fmt(fileBytes)}`:''}`;
-  const total=textBytes+photoBytes+fileBytes||1;
-  if(ub)ub.innerHTML=`<i style="width:${Math.max(3,textBytes/total*100)}%;background:var(--accent)"></i><i style="width:${photoBytes/total*100}%;background:var(--gold)"></i><i style="width:${fileBytes/total*100}%;background:var(--accent-2,var(--soft))"></i>`;
+  ut.textContent=`텍스트 ${fmt(textBytes)} · 사진 ${fmt(photoBytes)}`;
+  const total=textBytes+photoBytes||1;
+  if(ub)ub.innerHTML=`<i style="width:${Math.max(3,textBytes/total*100)}%;background:var(--accent)"></i><i style="width:${photoBytes/total*100}%;background:var(--gold)"></i>`;
 }
 function renderTagManage(){
   $('#tagManage').innerHTML=state.settings.tags.map(t=>`<span class="tg">#${esc(t)}<button data-deltag="${esc(t)}" aria-label="삭제">${icon('i-x')}</button></span>`).join('')||'<span style="color:var(--muted);font-size:12.5px">태그 없음</span>';
@@ -2313,7 +2248,6 @@ function renderQuickTags(){
 }
 function autoGrow(){quickTa.style.height='auto';quickTa.style.height=quickTa.scrollHeight+'px';}
 let quickPhotos=[];
-let quickFiles=[];
 function renderQuickPhotos(){
   const box=$('#quickPhotoPreview');if(!box)return;
   box.innerHTML=quickPhotos.map(p=>`<div class="qp-thumb"><img data-photo="${p.id}" alt=""><button class="qp-del" data-qpdel="${p.id}" type="button" aria-label="사진 빼기">${icon('i-x')}</button></div>`).join('');
@@ -2331,36 +2265,17 @@ async function addQuickImages(list){
   renderQuickPhotos();
 }
 $('#quickPhotoInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';await addQuickImages(files);};
-function renderQuickFiles(){
-  const box=$('#quickFilePreview');if(!box)return;
-  box.innerHTML=quickFiles.map(f=>`<div class="qf-chip"><span class="efile-ic">📄</span><span class="efile-name">${esc(f.name)}</span><button class="qf-del" data-qfdel="${f.id}" type="button" aria-label="파일 빼기">${icon('i-x')}</button></div>`).join('');
-  box.querySelectorAll('[data-qfdel]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.qfdel;delFile(id);quickFiles=quickFiles.filter(x=>x.id!==id);renderQuickFiles();}));
-}
-async function addQuickFiles(list){
-  list=[...list].filter(Boolean);if(!list.length)return;
-  const room=3-quickFiles.length;if(room<=0){toast('파일은 한 기록에 3개까지예요.');return;}
-  quickBox.classList.add('focused');
-  for(const f of list.slice(0,room)){
-    if(f.size>MAX_FILE_BYTES){toast(`${f.name}은(는) 너무 커요 (1.5MB 이하).`);continue;}
-    try{const html=await f.text();const id=uid();await putFile(id,html);quickFiles.push({id,name:f.name,size:f.size});}
-    catch(err){console.error(err);toast('파일을 불러오지 못했어요.');}
-  }
-  renderQuickFiles();
-}
-$('#quickFileBtn').onclick=()=>{if(quickFiles.length>=3){toast('파일은 한 기록에 3개까지예요.');return;}$('#quickFileInput').click();};
-$('#quickFileInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';await addQuickFiles(files);};
 quickTa.addEventListener('paste',e=>{const items=(e.clipboardData&&e.clipboardData.items)||[];const imgs=[];for(const it of items){if(it.type&&it.type.indexOf('image')===0){const f=it.getAsFile();if(f)imgs.push(f);}}if(imgs.length){e.preventDefault();addQuickImages(imgs);}});
 function saveQuickLine(){
-  const v=quickTa.value.trim();if(!v&&!quickPhotos.length&&!quickFiles.length)return;
+  const v=quickTa.value.trim();if(!v&&!quickPhotos.length)return;
   const past=quickDate!==nowYmd();
-  const e=addEntry({type:v?'line':(quickPhotos.length?'photo':'line'),original:v,photos:quickPhotos.slice(),files:quickFiles.slice(),date:quickDate,time:past?'':hm(new Date())});
+  const e=addEntry({type:v?'line':'photo',original:v,photos:quickPhotos.slice(),date:quickDate,time:past?'':hm(new Date())});
   if(quickTagSel.size)e.tags=[...new Set([...(e.tags||[]),...quickTagSel])];
   applyAutoTags(e);scheduleSave();
   justAddedId=e.id;
   quickTa.value='';autoGrow();
   quickTagSel.clear();renderQuickTags();
   quickPhotos=[];renderQuickPhotos();
-  quickFiles=[];renderQuickFiles();
   renderToday();
   justAddedId=null;
   quickTa.focus();
@@ -2815,7 +2730,7 @@ function compressImage(file,max=1600,q=0.72){return new Promise((res,rej)=>{
     try{res(c.toDataURL('image/jpeg',q))}catch(err){rej(err)}};
   img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('image'))};img.src=url;})}
 /* ---------- entry edit ---------- */
-let editingEntry=null, editTags=[], editPhotos=[], editFiles=[], editSnapshot='', editOriginalDate='';
+let editingEntry=null, editTags=[], editPhotos=[], editSnapshot='', editOriginalDate='';
 function syncEditCaptions(){$$('#edPhotos [data-cap]').forEach(inp=>{const p=editPhotos.find(x=>x.id===inp.dataset.cap);if(p)p.caption=inp.value;});}
 function renderEditPhotos(){
   const box=$('#edPhotos');if(!box)return;
@@ -2823,20 +2738,13 @@ function renderEditPhotos(){
   box.querySelectorAll('[data-delphoto]').forEach(b=>b.onclick=()=>{syncEditCaptions();editPhotos=editPhotos.filter(p=>p.id!==b.dataset.delphoto);renderEditPhotos();});
   hydratePhotos(box);
 }
-function renderEditFiles(){
-  const box=$('#edFiles');if(!box)return;
-  box.innerHTML=editFiles.length?editFiles.map(f=>`<div class="qf-chip"><span class="efile-ic">📄</span><span class="efile-name">${esc(f.name)}</span><button class="btn ghost sm" data-prevfile="${f.id}" data-fname="${esc(f.name)}" type="button">미리보기</button><button class="btn ghost sm" data-delfile="${f.id}" type="button" style="color:var(--red)">삭제</button></div>`).join(''):'<div style="color:var(--muted);font-size:12.5px;padding:2px">첨부한 HTML 파일이 없어요.</div>';
-  box.querySelectorAll('[data-prevfile]').forEach(b=>b.onclick=()=>openFilePreview(b.dataset.prevfile,b.dataset.fname));
-  box.querySelectorAll('[data-delfile]').forEach(b=>b.onclick=()=>{editFiles=editFiles.filter(f=>f.id!==b.dataset.delfile);renderEditFiles();});
-}
 function openEntry(id){
-  const e=findEntry(id);if(!e)return;editingEntry=id;editTags=[...(e.tags||[])];editPhotos=(e.photos||[]).map(p=>({...p}));editFiles=(e.files||[]).map(f=>({...f}));editSnapshot=contentSig(e);editOriginalDate=e.date;
+  const e=findEntry(id);if(!e)return;editingEntry=id;editTags=[...(e.tags||[])];editPhotos=(e.photos||[]).map(p=>({...p}));editSnapshot=contentSig(e);editOriginalDate=e.date;
   $('#entryTitle').textContent=({line:'한 줄 기록',conversation:'대화 기록',makeup:'보완 기록',photo:'사진 기록'}[e.type])||'기록';
   $('#entrySub').textContent=`${korShort(e.date)} · ${e.time||''}`;
   let html=`<div class="field"><label>${e.type==='photo'?'메모':'원문'}</label><textarea id="edOriginal" style="min-height:${e.type==='conversation'?'160px':'90px'}">${esc(e.original)}</textarea></div>`;
   html+=`<div class="field"><label>날짜</label><input type="date" id="edDate" value="${e.date}"></div>`;
   html+=`<div class="field"><label>시각 (선택)</label><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><input type="time" id="edTime" value="${e.time||''}" ${e.time?'':'disabled'} style="width:auto;min-width:130px"><label style="display:inline-flex;align-items:center;gap:6px;font-weight:400;color:var(--muted);font-size:13px"><input type="checkbox" id="edTimeUnknown" ${e.time?'':'checked'}> 시간 미상</label></div></div>`;
-  html+=`<div class="field"><label>HTML 파일 첨부</label><div class="ph-edit" id="edFiles"></div><button class="btn ghost sm" id="edAddFile" type="button" style="margin-top:8px">📄 HTML 파일 추가</button><input type="file" id="edFileInput" accept=".html,.htm,text/html" class="hidden"></div>`;
   if(e.type==='photo'){
     html+=`<div class="field"><label>사진</label><div class="ph-edit" id="edPhotos"></div><button class="btn ghost sm" id="edAddPhoto" type="button" style="margin-top:8px"><svg class="icon sm"><use href="#i-image"/></svg>사진 추가</button><input type="file" id="edPhotoInput" accept="image/*" multiple class="hidden"></div>`;
   }
@@ -2867,10 +2775,6 @@ function openEntry(id){
     if(_ab&&_ai){_ab.onclick=()=>_ai.click();
       _ai.onchange=async ev=>{const files=[...ev.target.files];ev.target.value='';if(!files.length)return;toast('사진 처리 중…');syncEditCaptions();for(const f of files){try{const url=await compressImage(f);const pid=uid();await putPhoto(pid,url);editPhotos.push({id:pid,caption:''});}catch(err){console.error(err);}}renderEditPhotos();};}
   }
-  renderEditFiles();
-  {const _afb=$('#edAddFile'), _afi=$('#edFileInput');
-    if(_afb&&_afi){_afb.onclick=()=>_afi.click();
-      _afi.onchange=async ev=>{const fs=[...ev.target.files];ev.target.value='';if(!fs.length)return;for(const f of fs){if(f.size>MAX_FILE_BYTES){toast(`${f.name}은(는) 너무 커요 (1.5MB 이하).`);continue;}try{const html=await f.text();const fid=uid();await putFile(fid,html);editFiles.push({id:fid,name:f.name,size:f.size});}catch(err){console.error(err);toast('파일을 불러오지 못했어요.');}}renderEditFiles();};}}
   const rean=$('#edReanalyze');if(rean)rean.onclick=()=>{persistEntryEdits(e);if(contentSig(e)!==editSnapshot){markDayStale(editOriginalDate);markDayStale(e.date);}scheduleSave();closeModal('#entryModal');analyzeEntry(e.id);};
   $('#entryDelete').classList.remove('hidden');
   $('#entryDelete').onclick=()=>deleteEntry(e.id);
@@ -2894,7 +2798,6 @@ function persistEntryEdits(e){
   const dateEl=$('#edDate');if(dateEl&&dateEl.value)e.date=dateEl.value;
   const _tu=$('#edTimeUnknown'), _ti=$('#edTime');
   if(_tu)e.time=_tu.checked?'':((_ti&&_ti.value)||'');
-  if($('#edFiles')){(e.files||[]).forEach(f=>{if(!editFiles.find(x=>x.id===f.id))delFile(f.id);});e.files=editFiles.map(f=>({...f}));}
   if(e.type==='photo'){$$('#entryBody [data-cap]').forEach(inp=>{const p=editPhotos.find(x=>x.id===inp.dataset.cap);if(p)p.caption=inp.value.trim();});
     (e.photos||[]).forEach(p=>{if(!editPhotos.find(x=>x.id===p.id))delPhoto(p.id);});
     e.photos=editPhotos;}
@@ -2923,7 +2826,7 @@ function emptyTrash(){
   const es=trashedEntries(), ns=trashedNotes(), total=es.length+ns.length;
   if(!total){toast('휴지통이 비어 있어요.');return;}
   if(!confirm(`휴지통의 ${total}개를 모두 완전히 삭제할까요?\n되돌릴 수 없습니다.`))return;
-  es.forEach(e=>{(e.photos||[]).forEach(p=>delPhoto(p.id));(e.files||[]).forEach(f=>delFile(f.id));});
+  es.forEach(e=>(e.photos||[]).forEach(p=>delPhoto(p.id)));
   state.entries=state.entries.filter(e=>!e.deletedAt);
   state.notes=(state.notes||[]).filter(n=>!n.deletedAt);
   scheduleSave();openTrash();refreshCurrent();renderSettings();toast('휴지통을 비웠어요.');
@@ -2946,7 +2849,7 @@ function openTrash(){
   $('#trashBody').innerHTML=(emptyBar+entryRows+noteRows)||`<div class="empty">${icon('i-trash')}<b>휴지통이 비어 있어요.</b></div>`;
   const _ea=$('#trashEmptyAll');if(_ea)_ea.onclick=emptyTrash;
   $$('#trashBody [data-restore]').forEach(b=>b.onclick=()=>{const e=findEntry(b.dataset.restore);if(e){e.deletedAt=null;markDayStale(e.date);scheduleSave();openTrash();refreshCurrent();renderSettings();toast('복원했어요.');}});
-  $$('#trashBody [data-purge]').forEach(b=>b.onclick=()=>{const e=findEntry(b.dataset.purge);if(e&&confirm('이 기록을 완전히 삭제할까요? 되돌릴 수 없습니다.')){(e.photos||[]).forEach(p=>delPhoto(p.id));(e.files||[]).forEach(f=>delFile(f.id));state.entries=state.entries.filter(x=>x.id!==e.id);scheduleSave();openTrash();refreshCurrent();renderSettings();toast('완전히 삭제했어요.');}});
+  $$('#trashBody [data-purge]').forEach(b=>b.onclick=()=>{const e=findEntry(b.dataset.purge);if(e&&confirm('이 기록을 완전히 삭제할까요? 되돌릴 수 없습니다.')){(e.photos||[]).forEach(p=>delPhoto(p.id));state.entries=state.entries.filter(x=>x.id!==e.id);scheduleSave();openTrash();refreshCurrent();renderSettings();toast('완전히 삭제했어요.');}});
   $$('#trashBody [data-nrestore]').forEach(b=>b.onclick=()=>{const n=findNote(b.dataset.nrestore);if(n){n.deletedAt=null;n.updatedAt=Date.now();scheduleSave();openTrash();if(currentView==='notes')renderNotes();renderSettings();toast('복원했어요.');}});
   $$('#trashBody [data-npurge]').forEach(b=>b.onclick=()=>{const n=findNote(b.dataset.npurge);if(n&&confirm('이 서랍 노트를 완전히 삭제할까요? 되돌릴 수 없습니다.')){state.notes=(state.notes||[]).filter(x=>x.id!==n.id);scheduleSave();openTrash();if(currentView==='notes')renderNotes();renderSettings();toast('완전히 삭제했어요.');}});
   openModal('#trashModal');
@@ -3010,26 +2913,11 @@ document.addEventListener('click',e=>{
   const ed=e.target.closest('[data-edit]');if(ed){openEntry(ed.dataset.edit);return;}
   const an=e.target.closest('[data-analyze]');if(an){analyzeEntry(an.dataset.analyze);return;}
   const fd=e.target.closest('[data-efold]');if(fd){toggleEntryFold(fd.dataset.efold,fd.closest('.entry'));return;}
-  const fp=e.target.closest('[data-filepreview]');if(fp){openFilePreview(fp.dataset.filepreview,fp.dataset.fname||'HTML');return;}
   // 메모 모드: 버튼이 숨겨져 있으니 기록을 탭하면 수정 열기
   if(document.documentElement.classList.contains('memo')&&!e.target.closest('button,a,input,textarea')){
     const en=e.target.closest('.entry');if(en&&en.dataset.entry){openEntry(en.dataset.entry);}
   }
 });
-/* ---------- HTML 파일 미리보기 (샌드박스에서 실행, 흔적 데이터와 격리) ---------- */
-let filePreviewName='page.html', filePreviewHtml='';
-async function openFilePreview(fileId,name){
-  const frame=$('#filePreviewFrame');if(!frame)return;
-  $('#filePreviewTitle').textContent=name||'HTML 미리보기';
-  filePreviewName=name||'page.html';filePreviewHtml='';
-  frame.srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:0;font:14px system-ui,sans-serif;color:#999;padding:24px">불러오는 중…</body>';
-  openModal('#filePreviewModal');
-  let html='';try{html=await getFile(fileId);}catch(err){html='';}
-  if(!html){frame.srcdoc='<!doctype html><meta charset="utf-8"><body style="margin:0;font:14px system-ui,sans-serif;color:#b00;padding:24px">이 기기에서 파일을 찾지 못했어요.<br><span style="color:#999">로그인 동기화 중이라면 잠시 후 다시 열어보세요.</span></body>';return;}
-  filePreviewHtml=html;
-  frame.srcdoc=html;
-}
-$('#filePreviewDownload').onclick=()=>{if(!filePreviewHtml){toast('내려받을 내용이 없어요.');return;}let nm=(filePreviewName||'page.html').replace(/[\\/:*?"<>|]+/g,'_');if(!/\.html?$/i.test(nm))nm+='.html';download(nm,filePreviewHtml,'text/html;charset=utf-8');};
 /* quick tag menu — retro-tag entries straight from the feed */
 let tagMenuId=null,tagMenuDirty=false;
 function openTagMenu(id,btn){
@@ -3073,10 +2961,9 @@ function download(name,text,type){const blob=new Blob([text],{type:type||'text/p
 $('#exportJson').onclick=async()=>{
   state.settings.lastBackupAt=Date.now();
   const photos=await allPhotos();
-  const files=await allFiles();
-  const {_photos,_files,...rest}=state;
+  const {_photos,...rest}=state;
   const doc={...rest, settings:{...state.settings, apiKey:''}}; // 백업엔 API 키를 넣지 않음
-  const out={app:'heunjeok',version:3,exportedAt:new Date().toISOString(),doc,photos,files};
+  const out={app:'heunjeok',version:3,exportedAt:new Date().toISOString(),doc,photos};
   download(`흔적_백업_${nowYmd()}.json`,JSON.stringify(out),'application/json');
   scheduleSave();renderBackupNote();if(currentView==='settings')renderSettings();
   toast('백업 파일을 내려받았어요. (API 키는 제외)');
@@ -3088,14 +2975,13 @@ $('#importJson').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)
       if(!confirm('현재 기록을 이 백업으로 덮어씁니다. 계속할까요?\n(먼저 현재 데이터를 백업하는 걸 권장해요.)'))return;
       const keepKey=state.settings.apiKey; // 현재 기기의 API 키는 복원에 영향받지 않음
       // wipe photos in idb
-      if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);const curf=await allFiles();for(const id in curf)await delFile(id);}
-      photoCache.clear();fileCache.clear();
+      if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);}
+      photoCache.clear();
       state=Object.assign(defaultDoc(),data.doc);
       state.settings=Object.assign(defaultDoc().settings,data.doc.settings||{});
       state.settings.apiKey=keepKey||'';
-      state._photos=state._photos||{};state._files=state._files||{};
+      state._photos=state._photos||{};
       if(data.photos){for(const id in data.photos)await putPhoto(id,data.photos[id]);}
-      if(data.files){for(const id in data.files)await putFile(id,data.files[id]);}
       migrate();bulkOp=true;await saveNow();bulkOp=false;applyTheme();refreshCurrent();renderTagFilter();toast('복원했어요.');
     }catch(err){alert('복원 실패: '+err.message);}
   };r.readAsText(f);
@@ -3125,7 +3011,7 @@ function buildMarkdown(from,to){
     entriesOf(date).forEach(e=>{
       const tm=e.time||'시간미상';
       if(e.type==='conversation'&&e.analysis){md+=`- ${tm} (대화 정리${e.analysis.title?' · '+e.analysis.title:''})\n`;ANALYSIS_KEYS.forEach(([k,l])=>{(e.analysis[k]||[]).forEach(x=>md+=`  - ${l}: ${x}\n`)});}
-      else md+=`- ${tm} ${mdInline(e.original).replace(/\n/g,' ')}${(e.photos||[]).length?` (사진 ${e.photos.length}장)`:''}${(e.files||[]).length?` (HTML 파일 ${e.files.length}개)`:''}\n`;
+      else md+=`- ${tm} ${mdInline(e.original).replace(/\n/g,' ')}${(e.photos||[]).length?` (사진 ${e.photos.length}장)`:''}\n`;
     });
     const _cmts=commentsOf(date);
     if(_cmts.length){md+='\n**그때의 나에게**\n';_cmts.forEach(c=>md+=`- (${cmtWhen(c.at)}) ${mdInline(c.text).replace(/\n/g,' ')}\n`);}
@@ -3179,23 +3065,21 @@ function zipRead(u8){
 async function exportZip(){
   toast('ZIP 만드는 중…');
   state.settings.lastBackupAt=Date.now();
-  const {_photos,_files,...rest}=state;
+  const {_photos,...rest}=state;
   const doc={...rest, settings:{...state.settings, apiKey:''}};
   const enc=new TextEncoder(), files=[];
   files.push({name:'data.json',data:enc.encode(JSON.stringify({app:'heunjeok',version:3,exportedAt:new Date().toISOString(),doc}))});
   files.push({name:'export.md',data:enc.encode(buildMarkdown('0000-01-01','9999-12-31'))});
   const photos=await allPhotos();
   for(const id in photos){const b=dataUrlToBytes(photos[id]);if(b)files.push({name:`photos/${id}.jpg`,data:b});}
-  const htmlFiles=await allFiles();
-  for(const id in htmlFiles){files.push({name:`files/${id}.html`,data:enc.encode(htmlFiles[id]||'')});}
   const zipBytes=zipStore(files);
-  let vOk=false,vN=0,vP=0,vF=0;
+  let vOk=false,vN=0,vP=0;
   try{const rb=zipRead(zipBytes);const dj=JSON.parse(new TextDecoder().decode(rb['data.json']));const vd=dj.doc||dj;
-    if(Array.isArray(vd.entries)){vOk=true;vN=vd.entries.filter(e=>!e.deletedAt).length;vP=Object.keys(rb).filter(k=>/^photos\/.+/.test(k)).length;vF=Object.keys(rb).filter(k=>/^files\/.+/.test(k)).length;}}catch(err){vOk=false;}
+    if(Array.isArray(vd.entries)){vOk=true;vN=vd.entries.filter(e=>!e.deletedAt).length;vP=Object.keys(rb).filter(k=>/^photos\/.+/.test(k)).length;}}catch(err){vOk=false;}
   if(!vOk){toast('⚠ 백업 검증 실패 — 저장이 손상됐을 수 있어요. 다시 시도해주세요.');return;}
   download(`흔적_backup_${nowYmd()}.zip`,zipBytes,'application/zip');
   scheduleSave();renderBackupNote();if(currentView==='settings')renderSettings();
-  toast(`백업 검증 완료 · 기록 ${vN}개 · 사진 ${vP}장${vF?` · 파일 ${vF}개`:''}`);
+  toast(`백업 검증 완료 · 기록 ${vN}개 · 사진 ${vP}장`);
 }
 async function importZipFile(file){
   let files;try{files=zipRead(new Uint8Array(await file.arrayBuffer()));}catch(err){alert('ZIP 읽기 실패: '+err.message);return;}
@@ -3206,14 +3090,12 @@ async function importZipFile(file){
   const bDate=data.exportedAt?new Date(data.exportedAt).toLocaleString('ko-KR'):'(날짜 정보 없음)';
   const bN=doc.entries.filter(e=>!e.deletedAt).length;
   const bP=Object.keys(files).filter(k=>/^photos\/.+/.test(k)).length;
-  const bF=Object.keys(files).filter(k=>/^files\/.+/.test(k)).length;
-  if(!confirm(`이 백업으로 복원할까요?\n\n· 백업 시점: ${bDate}\n· 기록 ${bN}개 · 사진 ${bP}장${bF?` · 파일 ${bF}개`:''}\n\n지금의 현재 기록은 이 백업으로 덮어써집니다.\n(먼저 현재 데이터를 백업하는 걸 권장해요.)`))return;
+  if(!confirm(`이 백업으로 복원할까요?\n\n· 백업 시점: ${bDate}\n· 기록 ${bN}개 · 사진 ${bP}장\n\n지금의 현재 기록은 이 백업으로 덮어써집니다.\n(먼저 현재 데이터를 백업하는 걸 권장해요.)`))return;
   const keepKey=state.settings.apiKey; // 현재 기기의 API 키는 복원에 영향받지 않음
-  if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);const curf=await allFiles();for(const id in curf)await delFile(id);}
-  photoCache.clear();fileCache.clear();
-  state=Object.assign(defaultDoc(),doc);state.settings=Object.assign(defaultDoc().settings,doc.settings||{});state.settings.apiKey=keepKey||'';state._photos=state._photos||{};state._files=state._files||{};
+  if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);}
+  photoCache.clear();
+  state=Object.assign(defaultDoc(),doc);state.settings=Object.assign(defaultDoc().settings,doc.settings||{});state.settings.apiKey=keepKey||'';state._photos=state._photos||{};
   for(const name in files){const m=name.match(/^photos\/(.+)\.(jpg|jpeg|png)$/i);if(m)await putPhoto(m[1],bytesToDataUrl(files[name],'image/jpeg'));}
-  for(const name in files){const mf=name.match(/^files\/(.+)\.html?$/i);if(mf)await putFile(mf[1],new TextDecoder().decode(files[name]));}
   migrate();bulkOp=true;await saveNow();bulkOp=false;applyTheme();refreshCurrent();renderTagFilter();toast('ZIP 백업을 복원했어요.');
 }
 $('#exportZip').onclick=exportZip;
@@ -3221,8 +3103,8 @@ $('#importZip').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)im
 $('#resetAll').onclick=async()=>{
   if(!confirm('정말 모든 기록을 삭제할까요? 되돌릴 수 없습니다.'))return;
   if(!confirm('마지막 확인입니다. 백업 없이 전부 지웁니다.'))return;
-  if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);const curf=await allFiles();for(const id in curf)await delFile(id);}
-  photoCache.clear();fileCache.clear();state=defaultDoc();bulkOp=true;await saveNow();bulkOp=false;applyTheme();refreshCurrent();renderTagFilter();toast('초기화했어요.');
+  if(storageMode==='idb'){const cur=await allPhotos();for(const id in cur)await delPhoto(id);}
+  photoCache.clear();state=defaultDoc();bulkOp=true;await saveNow();bulkOp=false;applyTheme();refreshCurrent();renderTagFilter();toast('초기화했어요.');
 };
 /* ---------- nav ---------- */
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('.nav-btn');if(!b)return;if(b.dataset.view==='more')openModal('#moreSheet');else switchView(b.dataset.view);});
@@ -3247,7 +3129,7 @@ async function reloadFromStorage(){
       state=Object.assign(defaultDoc(),loaded);
       state.settings=Object.assign(defaultDoc().settings,loaded.settings||{});
       if(!state.settings.apiKey)state.settings.apiKey=keepKey||'';
-      if(storageMode==='ls'){state._photos=state._photos||{};state._files=state._files||{};}
+      if(storageMode==='ls')state._photos=state._photos||{};
       migrate();refreshCurrent();
     }
   }catch(e){console.error('reload 실패',e);}
@@ -3256,7 +3138,7 @@ async function reloadFromStorage(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')reloadFromStorage();});
 window.addEventListener('focus',reloadFromStorage);
 /* ---------- 자동 업데이트: 폰 홈화면 앱이 예전 버전을 계속 보여주지 않도록, 서버의 새 버전을 확인해 새로고침 ---------- */
-const APP_VER='4.103';
+const APP_VER='4.104';
 async function checkAppUpdate(){
   if(!/^https?:$/.test(location.protocol))return;
   try{
@@ -3313,12 +3195,11 @@ function startSync(){
   snapUnsub=ref.onSnapshot(onCloudSnap,err=>console.warn('snapshot',err));
   scheduleCloudPush();
   setTimeout(uploadAllLocalPhotos,3000); // 이 기기 사진들을 클라우드로 올림(중복은 건너뜀)
-  setTimeout(uploadAllLocalFiles,3600); // 이 기기 HTML 파일들도 올림
   toast('기기 간 동기화를 시작했어요.');
 }
 function stopSync(){syncOn=false;syncUid=null;if(snapUnsub){try{snapUnsub();}catch(e){}snapUnsub=null;}}
 /* 클라우드로 보낼 형태: 사진(_photos)·API 키는 제외 (사진은 기기별) */
-function cloudPayload(){const {_photos,_files,...rest}=state;return {...rest,settings:{...state.settings,apiKey:''}};}
+function cloudPayload(){const {_photos,...rest}=state;return {...rest,settings:{...state.settings,apiKey:''}};}
 /* 사진 동기화: 새 사진은 올리고, 이 기기에 없는 사진은 볼 때 클라우드에서 받아온다 (Firestore users/{uid}/photos/{id}) */
 let uploadedPhotos=(()=>{try{return new Set(JSON.parse(localStorage.getItem('heunjeok_photos_uploaded')||'[]'));}catch(e){return new Set();}})();
 function markPhotoUploaded(id){uploadedPhotos.add(id);try{localStorage.setItem('heunjeok_photos_uploaded',JSON.stringify([...uploadedPhotos]));}catch(e){}}
@@ -3373,12 +3254,11 @@ function fullSig(d){return docSig(d)+':'+Object.keys((d&&d.routineLog)||{}).leng
 async function applyCloud(cloud){
   const before=fullSig(state);
   const merged=mergeDocs(cloudPayload(),cloud);
-  const keepKey=state.settings.apiKey,keepPhotos=state._photos,keepFiles=state._files;
+  const keepKey=state.settings.apiKey,keepPhotos=state._photos;
   state=Object.assign(defaultDoc(),merged);
   state.settings=Object.assign(defaultDoc().settings,merged.settings||{});
   state.settings.apiKey=keepKey||'';
   state._photos=keepPhotos||{};
-  state._files=keepFiles||{};
   migrate();
   _lastSettingsHash=settingsHash(); // 방금 받은 설정을 새 편집으로 오인하지 않게
   bulkOp=true;await saveNow();bulkOp=false;
@@ -3510,7 +3390,7 @@ async function ensureKatex(){
 async function init(){
   try{await openDB();storageMode='idb';}
   catch(e){storageMode='ls';console.warn('IndexedDB 사용 불가, localStorage로 대체',e);}
-  try{const loaded=await loadDoc();if(loaded){state=Object.assign(defaultDoc(),loaded);state.settings=Object.assign(defaultDoc().settings,loaded.settings||{});if(storageMode==='ls'){state._photos=state._photos||{};state._files=state._files||{};}}}
+  try{const loaded=await loadDoc();if(loaded){state=Object.assign(defaultDoc(),loaded);state.settings=Object.assign(defaultDoc().settings,loaded.settings||{});if(storageMode==='ls')state._photos=state._photos||{};}}
   catch(e){console.error('불러오기 실패',e);toast('저장된 데이터를 읽지 못했습니다.');}
   migrate();
   purgeTrash();
